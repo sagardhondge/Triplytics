@@ -1,24 +1,11 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
 
-const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  cabType: { type: String, default: "Hatchback" }, // default
-  platforms: [{ type: String }] // e.g., ["Uber","Ola"]
+const tripSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  destination: { type: String, required: true },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  budget: { type: Number }
 }, { timestamps: true });
 
-// hash password before save
-UserSchema.pre("save", async function(next) {
-  if (!this.isModified("password")) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-UserSchema.methods.matchPassword = async function(entered) {
-  return await bcrypt.compare(entered, this.password);
-};
-
-export default mongoose.model("User", UserSchema);
+export default mongoose.model("Trip", tripSchema);
