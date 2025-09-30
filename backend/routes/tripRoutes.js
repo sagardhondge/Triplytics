@@ -1,10 +1,10 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
-import { createTrip, getTrips } from "../controllers/tripController.js";
 
 const router = express.Router();
 
-router.post("/", protect, createTrip);
-router.get("/", protect, getTrips);
+router.get("/something", protect, (req, res) => {
+  res.json({ message: "Trip data only for logged in users" });
+});
 
 export default router;
