@@ -5,13 +5,14 @@ import API from "../utils/axios";
 import { useAuth } from "../context/AuthContext";
 import LoginBg from "../assets/login.webp";
 import { FcGoogle } from "react-icons/fc";
-import { FaFacebookF } from "react-icons/fa";
+import { FaFacebookF, FaEye, FaEyeSlash } from "react-icons/fa";
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -45,7 +46,7 @@ const Login = () => {
       <div className="relative z-10 w-full max-w-6xl flex flex-col md:flex-row items-center justify-between md:space-x-20 min-h-[80vh]">
         
         {/* LEFT SIDE: Login Box */}
-        <div className="w-full max-w-md md:w-1/2 flex justify-start md:justify-start ml-[-60px] ">
+        <div className="w-full max-w-md md:w-1/2 flex justify-start md:justify-start ml-[-60px]">
           <div className="bg-white/10 backdrop-blur-xl p-10 rounded-2xl shadow-2xl w-full transition-all duration-500 border border-white/30 animate-fadeInUp">
             <h1 className="text-4xl font-extrabold text-white mb-6 text-center drop-shadow-md">
               Welcome Back
@@ -67,15 +68,26 @@ const Login = () => {
                 className="p-4 rounded-xl bg-white/70 border border-gray-200 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-shadow text-lg placeholder-gray-600"
                 required
               />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                className="p-4 rounded-xl bg-white/70 border border-gray-200 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-shadow text-lg placeholder-gray-600"
-                required
-              />
+
+              {/* Password with show/hide toggle */}
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="p-4 rounded-xl bg-white/70 border border-gray-200 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-shadow text-lg placeholder-gray-600 w-full"
+                  required
+                />
+                <span
+                  className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-gray-600 hover:text-gray-800"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </span>
+              </div>
+
               <button
                 type="submit"
                 className="bg-blue-600 text-white py-4 mt-2 rounded-xl text-lg font-bold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
