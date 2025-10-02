@@ -1,18 +1,19 @@
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { AuthProvider } from "./context/AuthContext";
+
+function AppNav() {
+  // No navigation links needed
+  return null;
+}
 
 function App() {
   return (
-    <div>
-      <nav>
-        <Link to="/register">Register</Link> |{" "}
-        <Link to="/login">Login</Link> |{" "}
-        <Link to="/dashboard">Dashboard</Link>
-      </nav>
-
+    <AuthProvider>
+      <AppNav />
       <Routes>
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
@@ -24,8 +25,9 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<Login />} />
       </Routes>
-    </div>
+    </AuthProvider>
   );
 }
 
