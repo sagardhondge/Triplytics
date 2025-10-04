@@ -2,21 +2,25 @@ import { Routes, Route } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import Vehicles from "./pages/Vehicles"; // corrected
+import Costs from "./pages/Costs";       // corrected
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 
-function AppNav() {
-  // No navigation links needed
-  return null;
-}
-
 function App() {
+  const handleUnknownRoute = () => {
+    alert("Something went wrong, please try again!");
+  };
+
   return (
     <AuthProvider>
-      <AppNav />
       <Routes>
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+
+        {/* Protected Routes */}
         <Route
           path="/dashboard"
           element={
@@ -25,7 +29,51 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Login />} />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles"
+          element={
+            <ProtectedRoute>
+              <Vehicles />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/costs"
+          element={
+            <ProtectedRoute>
+              <Costs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all route for unknown paths */}
+        <Route
+          path="*"
+          element={
+            <div
+              className="flex justify-center items-center h-screen text-red-600 text-xl font-semibold"
+              onLoad={handleUnknownRoute}
+            >
+              Something went wrong, please try again!
+            </div>
+          }
+        />
       </Routes>
     </AuthProvider>
   );
