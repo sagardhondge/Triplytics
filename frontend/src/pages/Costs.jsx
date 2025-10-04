@@ -16,7 +16,7 @@ const Costs = ({ vehicles = [] }) => {
       tripName: "",
       distance: "",
       amount: "",
-      others: "",
+      others: "", // other expenses
       platform: "",
     },
   ]);
@@ -73,7 +73,6 @@ const Costs = ({ vehicles = [] }) => {
     0
   );
 
-  // Calculate remaining fuel based on trips
   const totalFuelUsed = expenseEntries.reduce((acc, e) => {
     const vehicle = vehicles.find((v) => v.name === e.vehicle);
     if (vehicle && e.distance && vehicle.mileage) {
@@ -82,19 +81,21 @@ const Costs = ({ vehicles = [] }) => {
     return acc;
   }, 0);
 
-  // Total expense after subtracting fuel used cost
   const totalExpense = expenseEntries.reduce((acc, e) => {
     const vehicle = vehicles.find((v) => v.name === e.vehicle);
     let fuelUsed = 0;
     if (vehicle && e.distance && vehicle.mileage) {
       fuelUsed = Number(e.distance) / Number(vehicle.mileage);
     }
-    // Use average fuel price
     const avgFuelPrice =
       fuelEntries.reduce((sum, f) => sum + Number(f.litres || 0) * Number(f.pricePerLitre || 0), 0) /
       (totalFuel || 1);
     const fuelCostForTrip = fuelUsed * avgFuelPrice;
-    return acc + Number(e.amount || 0) + Number(e.others || 0) - fuelCostForTrip;
+
+    // Include other expenses in calculation
+    const otherExpenses = Number(e.others || 0);
+
+    return acc + Number(e.amount || 0) + otherExpenses - fuelCostForTrip;
   }, 0);
 
   return (
@@ -112,7 +113,7 @@ const Costs = ({ vehicles = [] }) => {
             <p>Total Fuel (Litres): <span className="font-bold">{totalFuel.toFixed(2)}</span></p>
             <p>Fuel Cost: <span className="text-blue-700 font-extrabold">₹ {fuelCost.toFixed(2)}</span></p>
             <p>Remaining Fuel: <span className="text-green-700 font-extrabold">{(totalFuel - totalFuelUsed).toFixed(2)} L</span></p>
-            <p>Total Expense (after fuel deduction): <span className="text-red-600 font-extrabold">₹ {totalExpense.toFixed(2)}</span></p>
+            <p>Total Expense (after fuel deduction + others): <span className="text-red-600 font-extrabold">₹ {totalExpense.toFixed(2)}</span></p>
           </div>
         </section>
 
@@ -188,7 +189,7 @@ const Costs = ({ vehicles = [] }) => {
           </div>
           {showExpense &&
             expenseEntries.map((e) => (
-              <div key={e.id} className="grid md:grid-cols-6 gap-4 mb-4">
+              <div key={e.id} className="grid md:grid-cols-7 gap-4 mb-4">
                 <input
                   type="date"
                   name="date"
@@ -234,10 +235,10 @@ const Costs = ({ vehicles = [] }) => {
                   className="p-3 border rounded-xl"
                 />
                 <input
-                  type="text"
-                  name="platform"
-                  placeholder="Platform"
-                  value={e.platform}
+                  type="number"
+                  name="others"
+                  placeholder="Other Expenses ₹"
+                  value={e.others}
                   onChange={(ev) => handleExpenseChange(e.id, ev)}
                   className="p-3 border rounded-xl"
                 />
