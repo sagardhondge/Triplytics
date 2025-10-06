@@ -5,7 +5,6 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Vehicles from "./pages/Vehicles"; // corrected
 import Costs from "./pages/Costs";       // corrected
-import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -50,14 +49,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Costs />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
             </ProtectedRoute>
           }
         />
