@@ -1,26 +1,33 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-import Vehicles from "./pages/Vehicles";
+import Vehicles from "./pages/vehicles";
 import Costs from "./pages/Costs";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { AuthProvider } from "./context/AuthContext";
-import { AppContextProvider } from "./context/AppContext"; // Import the App Context Provider
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AppContextProvider } from "./context/AppContext";
+
+// Wrapper for default route
+function HomeRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user ? "/dashboard" : "/login"} replace />;
+}
 
 function App() {
-  // Removed handleUnknownRoute function and the use of alert()
-
   return (
     <AuthProvider>
-      {/* AppContextProvider wraps all routes that need access to global data (vehicles/expenses) */}
       <AppContextProvider>
         <Routes>
+          {/* Default route — auto-redirect based on login status */}
+          <Route path="/" element={<HomeRedirect />} />
+
+          {/* Public routes */}
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Routes */}
+          {/* Protected routes */}
           <Route
             path="/dashboard"
             element={
@@ -54,14 +61,12 @@ function App() {
             }
           />
 
-          {/* Catch-all route for unknown paths */}
+          {/* Catch-all 404 */}
           <Route
             path="*"
             element={
-              <div
-                className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold"
-              >
-                404 | Page Not Found. Please check the URL.
+              <div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">
+                404 | Page Not Found
               </div>
             }
           />
