@@ -43,13 +43,15 @@ const Vehicles = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
-      {/* Added padding-top to prevent overlap with fixed Navbar */}
-      <div className="max-w-5xl mx-auto pt-[100px] px-6 md:p-10">
-        <h1 className="text-3xl font-extrabold text-cyan-300 mb-8 flex items-center gap-3">
-          <Truck className="text-cyan-400" size={30} /> Vehicle Management
-        </h1>
-
+      {/* Spacing matches Profile page */}
+      <div className="pt-24 px-6 md:px-12 py-10 max-w-5xl mx-auto">
+        {/* Card container */}
         <div className="bg-gray-800/80 backdrop-blur-md p-8 rounded-xl shadow-2xl border border-cyan-500/20">
+          {/* Heading inside card */}
+          <h1 className="text-3xl font-extrabold text-cyan-300 mb-6 flex items-center gap-3">
+            <Truck className="text-cyan-400" size={30} /> Vehicle Management
+          </h1>
+
           {vehicles.map((v) => (
             <div
               key={v.id}
