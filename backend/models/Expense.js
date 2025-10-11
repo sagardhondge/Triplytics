@@ -34,6 +34,9 @@ const expenseSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    nextServiceDate: { 
+        type: Date
+    },
   },
   { timestamps: true }
 );
