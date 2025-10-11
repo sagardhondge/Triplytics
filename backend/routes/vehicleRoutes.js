@@ -8,6 +8,7 @@ router.route("/")
   .get(protect, getVehicles)
   .post(protect, addVehicle);
 
-router.route("/:id").delete(protect, deleteVehicle);
+router.route("/:id")
+  .delete(protect, deleteVehicle);
 
 export default router;
