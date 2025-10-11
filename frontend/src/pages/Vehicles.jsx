@@ -1,12 +1,31 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Truck, PlusCircle, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAppContext } from "../context/AppContext";
+import API from "../utils/axios";
 
 const ALL_FUEL_TYPES = ["Petrol", "Diesel", "CNG", "Electricity"];
 
 const Vehicles = () => {
   const { vehicles, updateVehicles } = useAppContext();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Fetch vehicles on mount
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      setLoading(true);
+      try {
+        const res = await API.get("/vehicles");
+        updateVehicles(res.data); // assuming backend returns array of vehicles
+      } catch (err) {
+        setError(err.response?.data?.message || "Failed to fetch vehicles");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVehicles();
+  }, []);
 
   const handleChange = (id, e) => {
     const newVehicles = vehicles.map((v) =>
@@ -29,28 +48,49 @@ const Vehicles = () => {
     updateVehicles(newVehicles);
   };
 
-  const addVehicle = () => {
-    updateVehicles([
-      ...vehicles,
-      { id: Date.now(), name: "", type: "", mileage: "", fuelType: [] },
-    ]);
+  const addVehicle = async () => {
+    try {
+      const newVehicle = {
+        name: "",
+        type: "",
+        mileage: "",
+        fuelType: [],
+      };
+      const res = await API.post("/vehicles", newVehicle);
+      updateVehicles([...vehicles, res.data]); // use backend ID
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to add vehicle");
+    }
   };
 
-  const removeVehicle = (id) => {
-    updateVehicles(vehicles.filter((v) => v.id !== id));
+  const removeVehicle = async (id) => {
+    try {
+      await API.delete(`/vehicles/${id}`);
+      updateVehicles(vehicles.filter((v) => v.id !== id));
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete vehicle");
+    }
+  };
+
+  const saveVehicle = async (v) => {
+    try {
+      await API.put(`/vehicles/${v.id}`, v);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to save vehicle");
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
-      {/* Spacing matches Profile page */}
       <div className="pt-24 px-6 md:px-12 py-10 max-w-5xl mx-auto">
-        {/* Card container */}
         <div className="bg-gray-800/80 backdrop-blur-md p-8 rounded-xl shadow-2xl border border-cyan-500/20">
-          {/* Heading inside card */}
           <h1 className="text-3xl font-extrabold text-cyan-300 mb-6 flex items-center gap-3">
             <Truck className="text-cyan-400" size={30} /> Vehicle Management
           </h1>
+
+          {loading && <p className="text-gray-300">Loading vehicles...</p>}
+          {error && <p className="text-red-500">{error}</p>}
 
           {vehicles.map((v) => (
             <div
@@ -63,12 +103,14 @@ const Vehicles = () => {
                 placeholder="Vehicle Name"
                 value={v.name}
                 onChange={(e) => handleChange(v.id, e)}
+                onBlur={() => saveVehicle(v)}
                 className="p-3 border rounded-lg bg-gray-700 border-gray-600 focus:ring-cyan-500 col-span-2"
               />
               <select
                 name="type"
                 value={v.type}
                 onChange={(e) => handleChange(v.id, e)}
+                onBlur={() => saveVehicle(v)}
                 className="p-3 border rounded-lg bg-gray-700 border-gray-600 focus:ring-cyan-500 col-span-1"
               >
                 <option value="">Type</option>
@@ -83,6 +125,7 @@ const Vehicles = () => {
                 min={0}
                 value={v.mileage}
                 onChange={(e) => handleChange(v.id, e)}
+                onBlur={() => saveVehicle(v)}
                 className="p-3 border rounded-lg bg-gray-700 border-gray-600 focus:ring-cyan-500 col-span-1"
               />
 
@@ -103,7 +146,10 @@ const Vehicles = () => {
                           type="checkbox"
                           id={`fuel-${v.id}-${fuel}`}
                           checked={v.fuelType?.includes(fuel) || false}
-                          onChange={() => handleFuelChange(v.id, fuel)}
+                          onChange={() => {
+                            handleFuelChange(v.id, fuel);
+                            saveVehicle(v);
+                          }}
                           className="mr-2 h-4 w-4 text-cyan-500 bg-gray-800 border-gray-600 rounded focus:ring-cyan-500"
                         />
                         <label
