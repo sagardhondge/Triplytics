@@ -5,19 +5,27 @@ import AddExpenseModal from "../components/AddExpenseModal";
 import { useAppContext } from "../context/AppContext";
 
 const Dashboard = () => {
-  const { expenses, addExpenses, loading } = useAppContext();
+  // Use useAppContext to get access to global state and functions
+  const { expenses, loading, error, addExpense } = useAppContext();
+  
+  // State for controlling the modal visibility
   const [showModal, setShowModal] = useState(false);
-
+  
+  // This function is now just to open the modal
   const handleOpenModal = () => {
     setShowModal(true);
   };
-
+  
+  // This function is passed to the modal to save the data
   const handleModalSave = (entries) => {
-    addExpenses(entries);
+    // Loop through entries and add them using the context function
+    entries.forEach(entry => addExpense(entry));
   };
 
   const totalProfit = (period) => {
-    if (!expenses) return 0;
+    // Guard clause for when expenses is not yet an array
+    if (!expenses || !Array.isArray(expenses)) return 0;
+
     const now = new Date();
     let filtered = expenses;
 
@@ -38,15 +46,22 @@ const Dashboard = () => {
       );
     }
 
-    if (!filtered || !Array.isArray(filtered)) return 0;
-
     return filtered.reduce((sum, e) => sum + Number(e.fare || 0), 0);
   };
 
+  // Conditionally render based on loading and error state
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
         Loading dashboard...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">
+        Error: Failed to load data.
       </div>
     );
   }
@@ -111,16 +126,19 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {expenses.length > 0 ? (
+              {expenses && expenses.length > 0 ? (
                 expenses.map((e, idx) => (
                   <tr
-                    key={idx}
+                    key={e._id || idx} // Use a unique ID from the backend
                     className="hover:bg-cyan-500/10 border-b border-cyan-500/10"
                   >
-                    <td className="px-6 py-3">{e.date}</td>
-                    <td className="px-6 py-3">{e.platform}</td>
-                    <td className="px-6 py-3 text-cyan-300 font-medium">₹{e.fare}</td>
-                    <td className="px-6 py-3 text-cyan-200">{e.fuel || 0}</td>
+                    <td className="px-6 py-3">{new Date(e.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-3">{e.title}</td>
+                    <td className="px-6 py-3 text-cyan-300 font-medium">₹{e.amount}</td>
+                    <td className="px-6 py-3 text-cyan-200">
+                      {/* Note: `fuel` property is not in the Expense model */}
+                      {e.category === 'Fuel' ? `${e.amount / 90}` : 'N/A'}
+                    </td>
                   </tr>
                 ))
               ) : (
