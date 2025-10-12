@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import API from '../utils/axios'; // Corrected import path
+import { useAuth } from './AuthContext'; // Import the useAuth hook
 
 // Create the context
 const AppContext = createContext();
@@ -6,49 +8,65 @@ const AppContext = createContext();
 // Custom hook to use the context easily
 export const useAppContext = () => useContext(AppContext);
 
-// Mock data for initial loading (replace with Firebase fetching later)
-const MOCK_VEHICLES = [
-    { id: 1, name: "Dzire Sedan", type: "Car", mileage: 18, fuelType: "Petrol" },
-    { id: 2, name: "Ertiga MUV", type: "Car", mileage: 22, fuelType: "CNG" },
-];
-
-const MOCK_EXPENSES = [
-    { platform: "Ola", fare: "350", date: "2025-09-30", distance: "25", vehicle: "Dzire Sedan" },
-    { platform: "Uber", fare: "400", date: "2025-10-01", distance: "30", vehicle: "Ertiga MUV" },
-];
-
-
 export const AppContextProvider = ({ children }) => {
+    const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
+
     // Global state for vehicles and all recorded ride/expense entries
-    const [vehicles, setVehicles] = useState(MOCK_VEHICLES);
-    const [expenses, setExpenses] = useState(MOCK_EXPENSES);
+    const [vehicles, setVehicles] = useState([]);
+    const [expenses, setExpenses] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Fetch data from backend when the user is authenticated
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [vehiclesRes, expensesRes] = await Promise.all([
+                    API.get('/vehicles'),
+                    API.get('/expenses')
+                ]);
+                setVehicles(vehiclesRes.data);
+                setExpenses(expensesRes.data);
+            } catch (err) {
+                setError("Failed to fetch data.");
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (user && !authLoading) {
+            fetchData();
+        }
+    }, [user, authLoading]); // Dependencies: user and authLoading
 
     // --- Vehicle Management ---
-    const updateVehicles = (newVehicles) => {
-        setVehicles(newVehicles);
-        // In a real app, this would trigger a database save.
+    const updateVehicles = async (newVehicles) => {
+        try {
+            // For now, we'll just update the local state.
+            setVehicles(newVehicles);
+        } catch (err) {
+            console.error("Failed to update vehicles:", err);
+        }
     };
 
     // --- Expense Management ---
-    // This function is used by the AddExpenseModal
-    const addExpenses = (newEntries) => {
-        // Ensure newEntries is an array of valid objects
-        const entriesWithVehicleInfo = newEntries.map(entry => ({
-            ...entry,
-            // Mock distance field for calculation if not provided by modal
-            distance: entry.distance || '10', 
-            // Add a unique ID
-            id: Date.now() + Math.random(), 
-        }));
-        
-        setExpenses((prevExpenses) => [...prevExpenses, ...entriesWithVehicleInfo]);
+    const addExpenses = async (newEntries) => {
+        try {
+            const addedExpenses = await Promise.all(
+                newEntries.map(entry => API.post('/expenses', entry))
+            );
+            setExpenses((prevExpenses) => [...prevExpenses, ...addedExpenses.map(res => res.data)]);
+        } catch (err) {
+            setError("Failed to add expenses.");
+            console.error(err);
+        }
     };
-    
-    // This function is used by the Costs page
+
     const updateExpenseEntries = (updatedEntries) => {
         setExpenses(updatedEntries);
     };
-
 
     const contextValue = {
         vehicles,
@@ -56,6 +74,8 @@ export const AppContextProvider = ({ children }) => {
         expenses,
         addExpenses,
         updateExpenseEntries,
+        loading,
+        error
     };
 
     return (

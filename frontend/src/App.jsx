@@ -1,3 +1,4 @@
+// This is your original App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -20,56 +21,14 @@ function App() {
     <AuthProvider>
       <AppContextProvider>
         <Routes>
-          {/* Default route — auto-redirect based on login status */}
           <Route path="/" element={<HomeRedirect />} />
-
-          {/* Public routes */}
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
-
-          {/* Protected routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/vehicles"
-            element={
-              <ProtectedRoute>
-                <Vehicles />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/costs"
-            element={
-              <ProtectedRoute>
-                <Costs />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Catch-all 404 */}
-          <Route
-            path="*"
-            element={
-              <div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">
-                404 | Page Not Found
-              </div>
-            }
-          />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
+          <Route path="/costs" element={<ProtectedRoute><Costs /></ProtectedRoute>} />
+          <Route path="*" element={<div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">404 | Page Not Found</div>} />
         </Routes>
       </AppContextProvider>
     </AuthProvider>

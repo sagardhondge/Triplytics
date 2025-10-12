@@ -1,28 +1,23 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import DashboardBg from "../assets/Dashboard.png";
+import AddExpenseModal from "../components/AddExpenseModal";
+import { useAppContext } from "../context/AppContext";
 
 const Dashboard = () => {
-  const [expenses, setExpenses] = useState([]);
-  const [newTrip, setNewTrip] = useState({
-    date: new Date().toISOString().split("T")[0],
-    platform: "",
-    fare: "",
-    fuel: ""
-  });
+  const { expenses, addExpenses, loading } = useAppContext();
+  const [showModal, setShowModal] = useState(false);
 
-  const handleAddTrip = () => {
-    if (!newTrip.platform || !newTrip.fare) return alert("Please fill all fields!");
-    setExpenses([...expenses, newTrip]);
-    setNewTrip({
-      date: new Date().toISOString().split("T")[0],
-      platform: "",
-      fare: "",
-      fuel: ""
-    });
+  const handleOpenModal = () => {
+    setShowModal(true);
+  };
+
+  const handleModalSave = (entries) => {
+    addExpenses(entries);
   };
 
   const totalProfit = (period) => {
+    if (!expenses) return 0;
     const now = new Date();
     let filtered = expenses;
 
@@ -43,8 +38,18 @@ const Dashboard = () => {
       );
     }
 
+    if (!filtered || !Array.isArray(filtered)) return 0;
+
     return filtered.reduce((sum, e) => sum + Number(e.fare || 0), 0);
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
+        Loading dashboard...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -83,41 +88,8 @@ const Dashboard = () => {
           <h2 className="text-xl font-semibold text-cyan-300 mb-4">
             Quick Trip Entry
           </h2>
-          <div className="grid md:grid-cols-4 gap-4">
-            <input
-              type="date"
-              name="date"
-              value={newTrip.date}
-              onChange={(e) => setNewTrip({ ...newTrip, date: e.target.value })}
-              className="p-3 rounded-xl bg-gray-700 border border-gray-600 text-white"
-            />
-            <input
-              type="text"
-              name="platform"
-              placeholder="Platform (Ola / Uber)"
-              value={newTrip.platform}
-              onChange={(e) => setNewTrip({ ...newTrip, platform: e.target.value })}
-              className="p-3 rounded-xl bg-gray-700 border border-gray-600 text-white"
-            />
-            <input
-              type="number"
-              name="fare"
-              placeholder="Fare (₹)"
-              value={newTrip.fare}
-              onChange={(e) => setNewTrip({ ...newTrip, fare: e.target.value })}
-              className="p-3 rounded-xl bg-gray-700 border border-gray-600 text-white"
-            />
-            <input
-              type="number"
-              name="fuel"
-              placeholder="Fuel Used (L)"
-              value={newTrip.fuel}
-              onChange={(e) => setNewTrip({ ...newTrip, fuel: e.target.value })}
-              className="p-3 rounded-xl bg-gray-700 border border-gray-600 text-white"
-            />
-          </div>
           <button
-            onClick={handleAddTrip}
+            onClick={handleOpenModal}
             className="mt-4 bg-cyan-500 hover:bg-green-500 text-gray-900 font-semibold px-6 py-2 rounded-xl transition-all"
           >
             + Add Trip
@@ -162,6 +134,12 @@ const Dashboard = () => {
           </table>
         </div>
       </div>
+
+      <AddExpenseModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={handleModalSave}
+      />
     </div>
   );
 };
