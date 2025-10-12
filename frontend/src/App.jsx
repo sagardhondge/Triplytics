@@ -7,29 +7,40 @@ import Vehicles from "./pages/vehicles";
 import Costs from "./pages/Costs";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-
-// Wrapper for default route
-function HomeRedirect() {
-  const { user } = useAuth();
-  return <Navigate to={user ? "/dashboard" : "/login"} replace />;
-}
+import { AppContextProvider } from "./context/AppContext";
 
 function App() {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen bg-gray-900 text-white">Loading...</div>;
+  }
+
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<HomeRedirect />} />
+        {/* Public routes */}
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        
-        {/* Protected routes wrapped by ProtectedRoute */}
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
-        <Route path="/costs" element={<ProtectedRoute><Costs /></ProtectedRoute>} />
-        
-        {/* Catch-all 404 */}
-        <Route path="*" element={<div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">404 | Page Not Found</div>} />
+        <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
+
+        {/* Protected routes wrapped in AppContextProvider */}
+        <Route 
+          path="/*" 
+          element={
+            <ProtectedRoute>
+              <AppContextProvider>
+                <Routes>
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="vehicles" element={<Vehicles />} />
+                  <Route path="costs" element={<Costs />} />
+                  <Route path="*" element={<Navigate to="/dashboard" />} />
+                </Routes>
+              </AppContextProvider>
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </AuthProvider>
   );
