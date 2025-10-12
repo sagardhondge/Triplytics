@@ -58,3 +58,27 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Add this function to authController.js
+export const updateProfile = async (req, res) => {
+  const { name, email, phone, city, vehicleMake, licensePlate, registrationDate } = req.body;
+  try {
+    const user = await User.findById(req.user);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.name = name || user.name;
+    user.email = email || user.email;
+    // You'll need to add these fields to your User model
+    user.phone = phone || user.phone;
+    user.city = city || user.city;
+    user.vehicleMake = vehicleMake || user.vehicleMake;
+    user.licensePlate = licensePlate || user.licensePlate;
+    user.registrationDate = registrationDate || user.registrationDate;
+
+    await user.save();
+    res.json({ message: "Profile updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

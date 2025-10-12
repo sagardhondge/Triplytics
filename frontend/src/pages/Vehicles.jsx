@@ -63,14 +63,15 @@ const Vehicles = () => {
     }
   };
 
-  const removeVehicle = async (id) => {
-    try {
-      await API.delete(`/vehicles/${id}`);
-      updateVehicles(vehicles.filter((v) => v.id !== id));
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete vehicle");
-    }
-  };
+const removeVehicle = async (id) => {
+  try {
+    await API.delete(`/vehicles/${id}`);
+    updateVehicles(vehicles.filter((v) => v.id !== id));
+  } catch (err) {
+    setError(err.response?.data?.message || "Failed to delete vehicle");
+  }
+};
+
 
   const saveVehicle = async (v) => {
     try {
