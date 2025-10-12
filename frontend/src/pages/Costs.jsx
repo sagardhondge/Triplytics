@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Wallet, ChevronDown, ChevronUp, X } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAppContext } from "../context/AppContext";
+import API from "../utils/axios";
 
 const Costs = () => {
-  const { vehicles, expenses: expenseEntries, updateExpenseEntries } = useAppContext();
+  const { vehicles, expenses, loading, error, updateExpenseEntries } = useAppContext();
 
   // ----------------------------- FUEL STATE -----------------------------
   const [fuelEntries, setFuelEntries] = useState([
@@ -46,7 +47,7 @@ const Costs = () => {
 
   const avgFuelPrice = fuelCost / (totalFuel || 1);
 
-  const totalFuelUsed = expenseEntries.reduce((acc, e) => {
+  const totalFuelUsed = expenses.reduce((acc, e) => {
     const vehicle = vehicles.find((v) => v.name === e.vehicle);
     if (vehicle && e.distance && vehicle.mileage) {
       return acc + Number(e.distance) / Number(vehicle.mileage);
@@ -55,53 +56,85 @@ const Costs = () => {
   }, 0);
 
   // ----------------------------- EXPENSE HANDLERS -----------------------------
+
   const handleExpenseChange = (id, e) => {
     const { name, value } = e.target;
+    const updatedEntries = expenses.map((exp) => {
+      if (exp.id !== id) return exp;
+      const updated = { ...exp, [name]: value };
 
-    updateExpenseEntries((prev) =>
-      prev.map((exp) => {
-        if (exp.id !== id) return exp;
-        const updated = { ...exp, [name]: value };
+      // Auto fuelCost calculation if distance or vehicle changes
+      const vehicle = vehicles.find((v) => v._id === updated.vehicle);
+      if (vehicle && updated.distance && vehicle.mileage) {
+        const fuelUsed = Number(updated.distance) / Number(vehicle.mileage);
+        updated.fuelCost = (fuelUsed * avgFuelPrice).toFixed(2);
+      }
 
-        // Auto fuelCost calculation if distance or vehicle changes
-        const vehicle = vehicles.find((v) => v.name === updated.vehicle);
-        if (vehicle && updated.distance && vehicle.mileage) {
-          const fuelUsed = Number(updated.distance) / Number(vehicle.mileage);
-          updated.fuelCost = (fuelUsed * avgFuelPrice).toFixed(2);
-        }
-
-        return updated;
-      })
-    );
+      return updated;
+    });
+    updateExpenseEntries(updatedEntries);
   };
 
-  const addExpenseEntry = () => {
-    updateExpenseEntries((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        date: new Date().toISOString().split("T")[0],
-        vehicle: "",
-        platform: "",
-        distance: "",
-        fare: "",
-        fuelCost: "",
-        others: "",
-        notes: "",
-      },
-    ]);
+  const saveExpenseEntry = async (expense) => {
+    try {
+        await API.put(`/expenses/${expense._id}`, expense);
+    } catch (err) {
+        console.error("Failed to save expense:", err);
+    }
   };
 
-  const removeExpenseEntry = (id) => {
-    updateExpenseEntries(expenseEntries.filter((e) => e.id !== id));
+  const addExpenseEntry = async () => {
+    const newEntry = {
+      title: "New Trip",
+      date: new Date().toISOString().split("T")[0],
+      vehicle: vehicles[0]?._id || "", // Default to the first vehicle
+      platform: "",
+      distance: "",
+      fare: "",
+      others: "",
+      notes: "",
+    };
+    try {
+        const res = await API.post("/expenses", newEntry);
+        updateExpenseEntries([...expenses, res.data]);
+    } catch (err) {
+        console.error("Failed to add expense:", err);
+    }
   };
+
+  const removeExpenseEntry = async (id) => {
+    try {
+        await API.delete(`/expenses/${id}`);
+        updateExpenseEntries(expenses.filter((e) => e._id !== id));
+    } catch (err) {
+        console.error("Failed to delete expense:", err);
+    }
+  };
+
 
   // ----------------------------- TOTAL COST -----------------------------
-  const totalExpense = expenseEntries.reduce((acc, e) => {
+  const totalExpense = expenses.reduce((acc, e) => {
     const totalTripCost =
       Number(e.fuelCost || 0) + Number(e.others || 0);
     return acc + totalTripCost;
   }, 0);
+  
+  // Conditionally render based on loading and error state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
+        Loading costs...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">
+        Error: Failed to load costs data.
+      </div>
+    );
+  }
 
   // ----------------------------- UI -----------------------------
   return (
@@ -120,7 +153,7 @@ const Costs = () => {
               <p>
                 Total Rides Logged:{" "}
                 <span className="font-bold text-cyan-300">
-                  {expenseEntries.length}
+                  {expenses.length}
                 </span>
               </p>
               <p>
@@ -248,29 +281,31 @@ const Costs = () => {
 
             {showExpense && (
               <>
-                {expenseEntries.length > 0 ? (
-                  expenseEntries.map((e) => (
+                {expenses.length > 0 ? (
+                  expenses.map((e) => (
                     <div
-                      key={e.id}
+                      key={e._id}
                       className="grid md:grid-cols-8 gap-4 mb-4 bg-gray-700/30 p-4 rounded-xl"
                     >
                       <input
                         type="date"
                         name="date"
-                        value={e.date}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
+                        value={e.date ? new Date(e.date).toISOString().split('T')[0] : ''}
+                        onChange={(ev) => handleExpenseChange(e._id, ev)}
+                        onBlur={() => saveExpenseEntry(e)}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
                       <select
                         name="vehicle"
                         value={e.vehicle || ""}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
+                        onChange={(ev) => handleExpenseChange(e._id, ev)}
+                        onBlur={() => saveExpenseEntry(e)}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       >
                         <option value="">Select Vehicle</option>
                         {(vehicles || []).map((v) => (
-                          <option key={v.name} value={v.name}>
+                          <option key={v._id} value={v._id}>
                             {v.name}
                           </option>
                         ))}
@@ -278,60 +313,57 @@ const Costs = () => {
 
                       <input
                         type="text"
-                        name="platform"
-                        placeholder="Platform (Ola/Uber)"
-                        value={e.platform || ""}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
+                        name="title"
+                        placeholder="Trip Title (e.g., Uber Trip)"
+                        value={e.title || ""}
+                        onChange={(ev) => handleExpenseChange(e._id, ev)}
+                        onBlur={() => saveExpenseEntry(e)}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
                       <input
                         type="number"
-                        name="distance"
-                        placeholder="Distance (km)"
-                        value={e.distance || ""}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
+                        name="amount"
+                        placeholder="Amount (₹)"
+                        value={e.amount || ""}
+                        onChange={(ev) => handleExpenseChange(e._id, ev)}
+                        onBlur={() => saveExpenseEntry(e)}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
-                      <input
-                        type="number"
-                        name="fare"
-                        placeholder="Fare (₹)"
-                        value={e.fare || ""}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
+                      <select
+                        name="category"
+                        value={e.category || ""}
+                        onChange={(ev) => handleExpenseChange(e._id, ev)}
+                        onBlur={() => saveExpenseEntry(e)}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      />
-
-                      <input
-                        type="number"
-                        name="others"
-                        placeholder="Other Expenses ₹"
-                        value={e.others || ""}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      />
+                      >
+                        <option value="">Category</option>
+                        <option value="Fuel">Fuel</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Toll">Toll</option>
+                        <option value="Parking">Parking</option>
+                        <option value="Other">Other</option>
+                      </select>
 
                       <input
                         type="text"
                         name="notes"
                         placeholder="Notes"
                         value={e.notes || ""}
-                        onChange={(ev) => handleExpenseChange(e.id, ev)}
+                        onChange={(ev) => handleExpenseChange(e._id, ev)}
+                        onBlur={() => saveExpenseEntry(e)}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
-                      <div className="flex flex-col justify-center text-cyan-300 font-semibold text-center">
-                        <p>Fuel Cost</p>
-                        <p>₹{e.fuelCost || 0}</p>
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={() => removeExpenseEntry(e._id)}
+                          className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 transition-all w-full"
+                        >
+                          <X className="w-5 h-5 mx-auto" />
+                        </button>
                       </div>
-
-                      <button
-                        onClick={() => removeExpenseEntry(e.id)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 transition-all col-span-full md:col-span-1"
-                      >
-                        <X className="w-5 h-5 mx-auto" />
-                      </button>
                     </div>
                   ))
                 ) : (
