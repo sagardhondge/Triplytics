@@ -3,13 +3,15 @@ import { useAuth } from "./AuthContext";
 import API from "../utils/axios";
 
 const useAppData = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!user) return; // Only fetch data if user is authenticated
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -28,18 +30,9 @@ const useAppData = () => {
       }
     };
 
-    if (user && !authLoading) {
-      fetchData();
-    }
-    
-    // Clear data if user logs out
-    if (!user && !authLoading) {
-      setVehicles([]);
-      setExpenses([]);
-    }
-  }, [user, authLoading]);
+    fetchData();
+  }, [user]); // The effect now depends on the user object
 
-  // Define functions to update data, which will call the API
   const addExpense = async (newExpense) => {
     try {
       const res = await API.post('/expenses', newExpense);

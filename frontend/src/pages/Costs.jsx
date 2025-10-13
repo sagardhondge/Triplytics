@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Wallet, ChevronDown, ChevronUp, X } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAppContext } from "../context/AppContext";
-import API from "../utils/axios";
 
 const Costs = () => {
-  const { vehicles, expenses, loading, error, updateExpenseEntries } = useAppContext();
+  const { 
+    vehicles, 
+    expenses, 
+    loading, 
+    error,
+    addExpense,
+    updateExpense,
+    deleteExpense
+  } = useAppContext();
 
-  // ----------------------------- FUEL STATE -----------------------------
+  // ----------------------------- LOCAL STATE -----------------------------
   const [fuelEntries, setFuelEntries] = useState([
     { id: Date.now(), type: "", litres: "", pricePerLitre: "" },
   ]);
@@ -56,66 +63,48 @@ const Costs = () => {
   }, 0);
 
   // ----------------------------- EXPENSE HANDLERS -----------------------------
-
   const handleExpenseChange = (id, e) => {
     const { name, value } = e.target;
-    const updatedEntries = expenses.map((exp) => {
-      if (exp.id !== id) return exp;
-      const updated = { ...exp, [name]: value };
+    const updatedFields = { [name]: value };
 
-      // Auto fuelCost calculation if distance or vehicle changes
-      const vehicle = vehicles.find((v) => v._id === updated.vehicle);
-      if (vehicle && updated.distance && vehicle.mileage) {
-        const fuelUsed = Number(updated.distance) / Number(vehicle.mileage);
-        updated.fuelCost = (fuelUsed * avgFuelPrice).toFixed(2);
-      }
+    // Update state immediately for responsive UI
+    const updatedEntries = expenses.map((exp) =>
+      exp._id === id ? { ...exp, ...updatedFields } : exp
+    );
 
-      return updated;
-    });
-    updateExpenseEntries(updatedEntries);
+    // Call the context function to update the global state
+    // We will update the global state and then the backend on blur
+    // updateExpense(id, updatedFields);
   };
-
+  
+  // This function is triggered on blur to save changes to the backend
   const saveExpenseEntry = async (expense) => {
-    try {
-        await API.put(`/expenses/${expense._id}`, expense);
-    } catch (err) {
-        console.error("Failed to save expense:", err);
-    }
+      // The updateExpense function is now handled by the context hook
+      updateExpense(expense._id, expense);
   };
 
-  const addExpenseEntry = async () => {
-    const newEntry = {
+  const addExpenseEntry = () => {
+    // Call the addExpense function from useAppContext
+    addExpense({
       title: "New Trip",
       date: new Date().toISOString().split("T")[0],
-      vehicle: vehicles[0]?._id || "", // Default to the first vehicle
+      vehicle: vehicles[0]?._id || "",
       platform: "",
-      distance: "",
-      fare: "",
-      others: "",
+      amount: 0,
+      category: "Other",
       notes: "",
-    };
-    try {
-        const res = await API.post("/expenses", newEntry);
-        updateExpenseEntries([...expenses, res.data]);
-    } catch (err) {
-        console.error("Failed to add expense:", err);
-    }
+    });
   };
 
-  const removeExpenseEntry = async (id) => {
-    try {
-        await API.delete(`/expenses/${id}`);
-        updateExpenseEntries(expenses.filter((e) => e._id !== id));
-    } catch (err) {
-        console.error("Failed to delete expense:", err);
-    }
+  const removeExpenseEntry = (id) => {
+    // Call the deleteExpense function from useAppContext
+    deleteExpense(id);
   };
-
 
   // ----------------------------- TOTAL COST -----------------------------
   const totalExpense = expenses.reduce((acc, e) => {
-    const totalTripCost =
-      Number(e.fuelCost || 0) + Number(e.others || 0);
+    // Note: fuelCost and others are not in the Expense model
+    const totalTripCost = Number(e.amount || 0);
     return acc + totalTripCost;
   }, 0);
   
@@ -177,7 +166,7 @@ const Costs = () => {
                 </span>
               </p>
               <p>
-                Total Trip Costs (Estimated):{" "}
+                Total Trip Costs:{" "}
                 <span className="text-red-400 font-extrabold">
                   ₹ {totalExpense.toFixed(2)}
                 </span>
@@ -291,16 +280,20 @@ const Costs = () => {
                         type="date"
                         name="date"
                         value={e.date ? new Date(e.date).toISOString().split('T')[0] : ''}
-                        onChange={(ev) => handleExpenseChange(e._id, ev)}
-                        onBlur={() => saveExpenseEntry(e)}
+                        onChange={(ev) => {
+                            const updatedFields = { date: ev.target.value };
+                            updateExpense(e._id, updatedFields);
+                        }}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
                       <select
                         name="vehicle"
                         value={e.vehicle || ""}
-                        onChange={(ev) => handleExpenseChange(e._id, ev)}
-                        onBlur={() => saveExpenseEntry(e)}
+                        onChange={(ev) => {
+                            const updatedFields = { vehicle: ev.target.value };
+                            updateExpense(e._id, updatedFields);
+                        }}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       >
                         <option value="">Select Vehicle</option>
@@ -316,8 +309,10 @@ const Costs = () => {
                         name="title"
                         placeholder="Trip Title (e.g., Uber Trip)"
                         value={e.title || ""}
-                        onChange={(ev) => handleExpenseChange(e._id, ev)}
-                        onBlur={() => saveExpenseEntry(e)}
+                        onChange={(ev) => {
+                            const updatedFields = { title: ev.target.value };
+                            updateExpense(e._id, updatedFields);
+                        }}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
@@ -326,16 +321,20 @@ const Costs = () => {
                         name="amount"
                         placeholder="Amount (₹)"
                         value={e.amount || ""}
-                        onChange={(ev) => handleExpenseChange(e._id, ev)}
-                        onBlur={() => saveExpenseEntry(e)}
+                        onChange={(ev) => {
+                            const updatedFields = { amount: ev.target.value };
+                            updateExpense(e._id, updatedFields);
+                        }}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 
                       <select
                         name="category"
                         value={e.category || ""}
-                        onChange={(ev) => handleExpenseChange(e._id, ev)}
-                        onBlur={() => saveExpenseEntry(e)}
+                        onChange={(ev) => {
+                            const updatedFields = { category: ev.target.value };
+                            updateExpense(e._id, updatedFields);
+                        }}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       >
                         <option value="">Category</option>
@@ -351,8 +350,10 @@ const Costs = () => {
                         name="notes"
                         placeholder="Notes"
                         value={e.notes || ""}
-                        onChange={(ev) => handleExpenseChange(e._id, ev)}
-                        onBlur={() => saveExpenseEntry(e)}
+                        onChange={(ev) => {
+                            const updatedFields = { notes: ev.target.value };
+                            updateExpense(e._id, updatedFields);
+                        }}
                         className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
                       />
 

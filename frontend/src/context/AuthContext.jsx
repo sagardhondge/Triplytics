@@ -1,30 +1,36 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import API from "../utils/axios";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // To avoid flicker
+  const [loading, setLoading] = useState(true);
 
-  // Load from localStorage on first render
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const checkUser = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const res = await API.get('/auth/profile');
+          setUser(res.data.user);
+        } catch (err) {
+          console.error("Failed to fetch user profile:", err);
+          localStorage.removeItem("token");
+        }
+      }
+      setLoading(false);
+    };
+
+    checkUser();
   }, []);
 
-  const login = (userData, token) => {
+  const login = (userData) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", token);
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("user");
     localStorage.removeItem("token");
   };
 
