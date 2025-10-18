@@ -3,7 +3,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-import Vehicles from "./pages/Vehicles";
+import Vehicles from "./pages/vehicles";
 import Costs from "./pages/Costs";
 import { useAuth } from "./context/AuthContext";
 import { AppContextProvider } from "./context/AppContext";
