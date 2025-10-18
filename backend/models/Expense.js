@@ -14,12 +14,12 @@ const expenseSchema = new mongoose.Schema(
     },
     title: {
       type: String,
-      required: true,
+      required: true, // Required, must map to frontend 'platform' field
       trim: true,
     },
     amount: {
       type: Number,
-      required: true,
+      required: true, // Required, must map to frontend 'fare' field
     },
     category: {
       type: String,
@@ -41,4 +41,4 @@ const expenseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Expense", expenseSchema);
+export default mongoose.model("Expense", expenseSchema); 

@@ -8,4 +8,4 @@ const tripSchema = new mongoose.Schema({
   budget: { type: Number }
 }, { timestamps: true });
 
-export default mongoose.model("Trip", tripSchema);
+export default mongoose.model("Trip", tripSchema); 

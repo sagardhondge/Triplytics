@@ -1,3 +1,4 @@
+ 
 import mongoose from "mongoose";
 
 const vehicleSchema = new mongoose.Schema(
@@ -9,11 +10,12 @@ const vehicleSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: true,
+      required: true, // Required for validation
+      trim: true
     },
     type: {
       type: String,
-      enum: ["Car", "Bike", "Truck"],
+      enum: ["Car", "Bike", "Truck", "Auto"],
       required: true,
     },
     mileage: {

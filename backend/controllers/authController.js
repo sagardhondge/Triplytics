@@ -1,84 +1,55 @@
-import User from "../models/User.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import Expense from "../models/Expense.js";
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-};
-
-export const registerUser = async (req, res) => {
-  console.log("Received:", req.body); 
-  const { name, email, password } = req.body;
-
+// ➕ Add Expense
+export const addExpense = async (req, res) => {
   try {
-    const userExists = await User.findOne({ email });
-    if (userExists) return res.status(400).json({ message: "User already exists" });
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const user = await User.create({ name, email, password: hashedPassword });
-
-    res.status(201).json({
-      _id: user.id,
-      name: user.name,
-      email: user.email,
-      token: generateToken(user.id)
-    }); 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-export const getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user).select("-password");
-    res.json({ user });
+    const expense = await Expense.create({ ...req.body, user: req.user });
+    res.status(201).json(expense);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await User.findOne({ email });
-
-    if (user && (await bcrypt.compare(password, user.password))) {
-      res.json({
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        token: generateToken(user.id)
-      });
-    } else {
-      res.status(400).json({ message: "Invalid credentials" });
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
     }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Server error during addExpense:", err);
+    res.status(500).json({ message: "Internal Server Error: Could not save expense." });
   }
 };
-// Add this function to authController.js
-export const updateProfile = async (req, res) => {
-  const { name, email, phone, city, vehicleMake, licensePlate, registrationDate } = req.body;
+
+// 📋 Get All Expenses for Logged-in User
+export const getExpenses = async (req, res) => {
   try {
-    const user = await User.findById(req.user);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    user.name = name || user.name;
-    user.email = email || user.email;
-    // You'll need to add these fields to your User model
-    user.phone = phone || user.phone;
-    user.city = city || user.city;
-    user.vehicleMake = vehicleMake || user.vehicleMake;
-    user.licensePlate = licensePlate || user.licensePlate;
-    user.registrationDate = registrationDate || user.registrationDate;
-
-    await user.save();
-    res.json({ message: "Profile updated successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const expenses = await Expense.find({ user: req.user }).sort({ date: -1 });
+    res.status(200).json(expenses);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
+
+// ✏️ Update Expense
+export const updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findOneAndUpdate(
+      { _id: req.params.id, user: req.user },
+      req.body,
+      { new: true, runValidators: true } 
+    );
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+    res.json(expense);
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
+    }
+    console.error("Server error during updateExpense:", err);
+    res.status(500).json({ message: "Internal Server Error: Could not update expense." });
+  }
+};
+
+// ❌ Delete Expense
+export const deleteExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findOneAndDelete({ _id: req.params.id, user: req.user });
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+    res.json({ message: "Expense deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}; 
