@@ -1,5 +1,3 @@
-import jwt from "jsonwebtoken";
-
 export const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -8,9 +6,10 @@ export const protect = (req, res, next) => {
   }
 
   const token = authHeader.split(" ")[1];
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.id; // store user ID
+    req.user = { id: decoded.id }; // <-- wrap in object
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid token" });

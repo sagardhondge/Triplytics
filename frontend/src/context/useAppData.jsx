@@ -31,15 +31,21 @@ const useAppData = () => {
     };
 
     fetchData();
-  }, [user]); // The effect now depends on the user object
+  }, [user]);
 
   const addExpense = async (newExpense) => {
+    const mappedExpense = {
+      ...newExpense,
+      title: newExpense.platform,
+      amount: newExpense.fare,
+    };
     try {
-      const res = await API.post('/expenses', newExpense);
+      const res = await API.post('/expenses', mappedExpense);
       setExpenses(prev => [...prev, res.data]);
       return res.data;
     } catch (err) {
       setError("Failed to add expense.");
+      console.error(err);
     }
   };
 

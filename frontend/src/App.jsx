@@ -3,13 +3,13 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-import Vehicles from "./pages/vehicles";
+import Vehicles from "./pages/Vehicles";
 import Costs from "./pages/Costs";
 import { useAuth } from "./context/AuthContext";
 import { AppContextProvider } from "./context/AppContext";
 
-// A container for all protected routes
-const AppLayout = () => {
+// A container for all protected routes, wrapped in AppContextProvider
+const ProtectedRoutes = () => {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
 
@@ -42,7 +42,7 @@ function App() {
       <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/*" element={<AppLayout />} />
+      <Route path="/*" element={<ProtectedRoutes />} />
     </Routes>
   );
 }
