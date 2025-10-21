@@ -1,329 +1,152 @@
 import React, { useState } from "react";
-import { Wallet, ChevronDown, ChevronUp, X } from "lucide-react";
 import Navbar from "../components/Navbar";
+import { X } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 
 const Costs = () => {
-  const { 
-    vehicles, 
-    expenses, 
-    loading, 
-    error,
-    addExpense,
-    updateExpense,
-    deleteExpense
-  } = useAppContext();
+  const { vehicles, expenses, addExpense, updateExpense, deleteExpense, updateVehicle } = useAppContext();
 
-  // ----------------------------- LOCAL STATE -----------------------------
-  const [fuelEntries, setFuelEntries] = useState([
-    { id: Date.now(), type: "", litres: "", pricePerLitre: "" },
-  ]);
+  const [editingFuel, setEditingFuel] = useState({}); // { vehicleId: true/false }
 
-  const [showFuel, setShowFuel] = useState(true);
-  const [showExpense, setShowExpense] = useState(true);
+  const handleFuelChange = (vehicleId, index, field, value) => {
+    const vehicle = vehicles.find((v) => v._id === vehicleId);
+    if (!vehicle) return;
 
-  // ----------------------------- FUEL HANDLERS -----------------------------
-  const handleFuelChange = (id, e) => {
-    const { name, value } = e.target;
-    setFuelEntries((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, [name]: value } : f))
-    );
+    const updatedFuelEntries = [...(vehicle.fuelEntries || [])];
+    updatedFuelEntries[index] = { ...updatedFuelEntries[index], [field]: value };
+
+    updateVehicle(vehicleId, { fuelEntries: updatedFuelEntries });
   };
 
-  const addFuelEntry = () => {
-    setFuelEntries([
-      ...fuelEntries,
-      { id: Date.now(), type: "", litres: "", pricePerLitre: "" },
-    ]);
+  const addFuelEntry = (vehicleId) => {
+    const vehicle = vehicles.find((v) => v._id === vehicleId);
+    if (!vehicle) return;
+
+    const updatedFuelEntries = [...(vehicle.fuelEntries || []), { type: "", litres: "", pricePerLitre: "" }];
+    updateVehicle(vehicleId, { fuelEntries: updatedFuelEntries });
   };
 
-  const removeFuelEntry = (id) => {
-    setFuelEntries(fuelEntries.filter((f) => f.id !== id));
+  const removeFuelEntry = (vehicleId, index) => {
+    const vehicle = vehicles.find((v) => v._id === vehicleId);
+    if (!vehicle) return;
+
+    const updatedFuelEntries = vehicle.fuelEntries.filter((_, i) => i !== index);
+    updateVehicle(vehicleId, { fuelEntries: updatedFuelEntries });
   };
 
-  // ----------------------------- CALCULATIONS -----------------------------
-  const totalFuel = fuelEntries.reduce(
-    (acc, f) => acc + Number(f.litres || 0),
-    0
-  );
-
-  const fuelCost = fuelEntries.reduce(
-    (acc, f) => acc + Number(f.litres || 0) * Number(f.pricePerLitre || 0),
-    0
-  );
-
-  const totalFuelUsed = expenses.reduce((acc, e) => {
-    const vehicle = vehicles.find((v) => v._id === e.vehicle);
-    if (vehicle && e.distance && vehicle.mileage) {
-      return acc + Number(e.distance) / Number(vehicle.mileage);
-    }
-    return acc;
-  }, 0);
-
-  // ----------------------------- EXPENSE HANDLERS -----------------------------
-  const saveExpenseEntry = async (expense) => {
-    await updateExpense(expense._id, expense);
+  const getFuelCostForVehicle = (vehicleId) => {
+    const vehicle = vehicles.find((v) => v._id === vehicleId);
+    if (!vehicle?.fuelEntries) return 0;
+    return vehicle.fuelEntries.reduce((sum, f) => sum + (Number(f.litres) || 0) * (Number(f.pricePerLitre) || 0), 0);
   };
 
-  const addExpenseEntry = async () => {
-    if (!vehicles || vehicles.length === 0) {
-      alert("Please add a vehicle first.");
-      return;
-    }
-
-    const newExpense = {
-      title: "New Trip",
-      date: new Date().toISOString().split("T")[0],
-      vehicle: vehicles[0]._id,
-      amount: 0,
-      category: "Other",
-      notes: "",
-    };
-
-    const added = await addExpense(newExpense);
-    if (!added) {
-      alert("Failed to add expense. Check console for details.");
-    }
-  };
-
-  const removeExpenseEntry = (id) => {
-    deleteExpense(id);
-  };
-
-  // ----------------------------- TOTAL COST -----------------------------
-  const totalExpense = expenses.reduce((acc, e) => {
-    return acc + Number(e.amount || 0);
-  }, 0);
-
-  // ----------------------------- RENDER -----------------------------
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
-        Loading costs...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">
-        Error: {error}
-      </div>
-    );
-  }
+  if (!vehicles || !expenses) return <div>Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
-      <div className="pt-24 px-6 md:px-12 py-10">
-        <div className="max-w-7xl mx-auto bg-gray-800/80 backdrop-blur-md rounded-xl shadow-2xl p-8 border border-cyan-500/20">
-          <h1 className="text-3xl font-extrabold text-cyan-300 mb-8 flex items-center gap-3">
-            <Wallet className="text-cyan-400" size={30} /> Cost Management
-          </h1>
+      <div className="pt-24 px-6 md:px-12 py-10 max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-cyan-300 mb-6">Detailed Costs</h1>
 
-          {/* ===================== SUMMARY ===================== */}
-          <section className="mb-10">
-            <h2 className="text-2xl font-semibold text-gray-200 mb-4">Summary</h2>
-            <div className="bg-gray-700/50 p-6 rounded-xl shadow-inner grid md:grid-cols-3 gap-4 border border-gray-700">
-              <p>
-                Total Rides Logged:{" "}
-                <span className="font-bold text-cyan-300">{expenses.length}</span>
-              </p>
-              <p>
-                Total Fuel Purchased (L):{" "}
-                <span className="font-bold">{totalFuel.toFixed(2)}</span>
-              </p>
-              <p>
-                Total Fuel Cost:{" "}
-                <span className="text-cyan-300 font-extrabold">₹ {fuelCost.toFixed(2)}</span>
-              </p>
-              <p>
-                Estimated Fuel Used (L):{" "}
-                <span className="font-bold">{totalFuelUsed.toFixed(2)}</span>
-              </p>
-              <p>
-                Remaining Fuel (L):{" "}
-                <span className="text-green-400 font-extrabold">
-                  {(totalFuel - totalFuelUsed).toFixed(2)}
-                </span>
-              </p>
-              <p>
-                Total Trip Costs:{" "}
-                <span className="text-red-400 font-extrabold">₹ {totalExpense.toFixed(2)}</span>
-              </p>
-            </div>
-          </section>
+        {vehicles.map((vehicle) => {
+          const fuelCost = getFuelCostForVehicle(vehicle._id);
+          const vehicleExpenses = expenses.filter((e) => e.vehicle === vehicle._id);
 
-          {/* ===================== FUEL SECTION ===================== */}
-          <section className="mb-10">
-            <div
-              className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
-              onClick={() => setShowFuel(!showFuel)}
-            >
-              <h2 className="text-2xl font-semibold text-gray-200">Fuel Entries</h2>
-              {showFuel ? <ChevronUp className="text-cyan-400" /> : <ChevronDown className="text-cyan-400" />}
-            </div>
+          return (
+            <div key={vehicle._id} className="mb-10 bg-gray-800/70 p-6 rounded-xl shadow-xl border border-cyan-500/20">
+              <h2 className="text-2xl font-bold text-cyan-300 mb-4">{vehicle.vehicleMake}</h2>
 
-            {showFuel && (
-              <>
-                {fuelEntries.map((f) => (
-                  <div key={f.id} className="grid md:grid-cols-6 gap-4 mb-4 items-center bg-gray-700/30 p-4 rounded-xl">
-                    <select
-                      name="type"
+              {/* Fuel Entries */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xl font-semibold text-gray-200">Fuel Entries</h3>
+                  <button
+                    onClick={() => addFuelEntry(vehicle._id)}
+                    className="bg-cyan-600 px-4 py-2 rounded-xl font-semibold hover:bg-cyan-700 transition-all"
+                  >
+                    + Add Fuel
+                  </button>
+                </div>
+                {(vehicle.fuelEntries || []).map((f, idx) => (
+                  <div key={idx} className="grid md:grid-cols-5 gap-4 mb-2 bg-gray-700/30 p-3 rounded-xl">
+                    <input
+                      type="text"
+                      placeholder="Fuel Type"
                       value={f.type}
-                      onChange={(e) => handleFuelChange(f.id, e)}
-                      className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                    >
-                      <option value="">Fuel Type</option>
-                      <option value="Petrol">Petrol</option>
-                      <option value="Diesel">Diesel</option>
-                      <option value="CNG">CNG</option>
-                      <option value="Electricity">Electricity</option>
-                    </select>
-
+                      onChange={(e) => handleFuelChange(vehicle._id, idx, "type", e.target.value)}
+                      className="p-2 rounded-xl bg-gray-700 border border-gray-600 text-white"
+                    />
                     <input
                       type="number"
-                      name="litres"
                       placeholder="Litres"
                       value={f.litres}
-                      onChange={(e) => handleFuelChange(f.id, e)}
-                      className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
+                      onChange={(e) => handleFuelChange(vehicle._id, idx, "litres", e.target.value)}
+                      className="p-2 rounded-xl bg-gray-700 border border-gray-600 text-white"
                     />
-
                     <input
                       type="number"
-                      name="pricePerLitre"
                       placeholder="Price per Litre ₹"
                       value={f.pricePerLitre}
-                      onChange={(e) => handleFuelChange(f.id, e)}
-                      className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
+                      onChange={(e) => handleFuelChange(vehicle._id, idx, "pricePerLitre", e.target.value)}
+                      className="p-2 rounded-xl bg-gray-700 border border-gray-600 text-white"
                     />
-
                     <p className="flex items-center font-semibold text-cyan-300">
-                      Total: ₹ {(Number(f.litres) * Number(f.pricePerLitre) || 0).toFixed(2)}
+                      Total: ₹{((Number(f.litres) || 0) * (Number(f.pricePerLitre) || 0)).toFixed(2)}
                     </p>
-
                     <button
-                      onClick={() => removeFuelEntry(f.id)}
-                      className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 transition-all col-span-2 md:col-span-1"
+                      onClick={() => removeFuelEntry(vehicle._id, idx)}
+                      className="bg-red-600 text-white px-2 py-1 rounded-xl hover:bg-red-700 transition-all"
                     >
-                      <X className="w-5 h-5 mx-auto" />
+                      <X className="w-5 h-5" />
                     </button>
                   </div>
                 ))}
+                <p className="mt-2 text-gray-400">Total Fuel Cost: ₹{fuelCost}</p>
+              </div>
 
-                <button
-                  onClick={addFuelEntry}
-                  className="mt-2 bg-cyan-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-cyan-700 transition-all"
-                >
-                  + Add Fuel Entry
-                </button>
-              </>
-            )}
-          </section>
-
-          {/* ===================== EXPENSE SECTION ===================== */}
-          <section>
-            <div
-              className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
-              onClick={() => setShowExpense(!showExpense)}
-            >
-              <h2 className="text-2xl font-semibold text-gray-200">Trip Entries (Detailed)</h2>
-              {showExpense ? <ChevronUp className="text-cyan-400" /> : <ChevronDown className="text-cyan-400" />}
+              {/* Trip Entries */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-cyan-500/20 text-cyan-300 uppercase text-sm">
+                    <tr>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Trip</th>
+                      <th className="px-4 py-2">Fare (₹)</th>
+                      <th className="px-4 py-2">Net Profit (₹)</th>
+                      <th className="px-4 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vehicleExpenses.length > 0 ? (
+                      vehicleExpenses.map((e) => (
+                        <tr key={e._id} className="hover:bg-cyan-500/10 border-b border-cyan-500/10">
+                          <td className="px-4 py-2">{new Date(e.date).toLocaleDateString()}</td>
+                          <td className="px-4 py-2">{e.title}</td>
+                          <td className="px-4 py-2">₹{e.amount}</td>
+                          <td className="px-4 py-2">₹{(Number(e.amount) || 0) - fuelCost}</td>
+                          <td className="px-4 py-2">
+                            <button
+                              onClick={() => deleteExpense(e._id)}
+                              className="bg-red-600 px-2 py-1 rounded-xl hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="text-center py-4 text-gray-400 italic">
+                          No trips recorded for this vehicle.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-            {showExpense && (
-              <>
-                {expenses.length > 0 ? (
-                  expenses.map((e) => (
-                    <div key={e._id} className="grid md:grid-cols-8 gap-4 mb-4 bg-gray-700/30 p-4 rounded-xl">
-                      <input
-                        type="date"
-                        name="date"
-                        value={e.date ? new Date(e.date).toISOString().split("T")[0] : ""}
-                        onChange={(ev) => updateExpense(e._id, { date: ev.target.value })}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      />
-
-                      <select
-                        name="vehicle"
-                        value={e.vehicle || ""}
-                        onChange={(ev) => updateExpense(e._id, { vehicle: ev.target.value })}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      >
-                        <option value="">Select Vehicle</option>
-                        {vehicles.map((v) => (
-                          <option key={v._id} value={v._id}>{v.name}</option>
-                        ))}
-                      </select>
-
-                      <input
-                        type="text"
-                        name="title"
-                        placeholder="Trip Title"
-                        value={e.title || ""}
-                        onChange={(ev) => updateExpense(e._id, { title: ev.target.value })}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      />
-
-                      <input
-                        type="number"
-                        name="amount"
-                        placeholder="Amount (₹)"
-                        value={e.amount || ""}
-                        onChange={(ev) => updateExpense(e._id, { amount: ev.target.value })}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      />
-
-                      <select
-                        name="category"
-                        value={e.category || ""}
-                        onChange={(ev) => updateExpense(e._id, { category: ev.target.value })}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      >
-                        <option value="">Category</option>
-                        <option value="Fuel">Fuel</option>
-                        <option value="Maintenance">Maintenance</option>
-                        <option value="Toll">Toll</option>
-                        <option value="Parking">Parking</option>
-                        <option value="Other">Other</option>
-                      </select>
-
-                      <input
-                        type="text"
-                        name="notes"
-                        placeholder="Notes"
-                        value={e.notes || ""}
-                        onChange={(ev) => updateExpense(e._id, { notes: ev.target.value })}
-                        className="p-3 border rounded-xl bg-gray-700 border-gray-600 text-white"
-                      />
-
-                      <div className="flex items-center justify-center">
-                        <button
-                          onClick={() => removeExpenseEntry(e._id)}
-                          className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 transition-all w-full"
-                        >
-                          <X className="w-5 h-5 mx-auto" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400 italic">
-                    No trips added yet. Click below to add a new entry.
-                  </p>
-                )}
-
-                <button
-                  onClick={addExpenseEntry}
-                  className="mt-2 bg-cyan-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-cyan-700 transition-all"
-                >
-                  + Add Trip Entry
-                </button>
-              </>
-            )}
-          </section>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
