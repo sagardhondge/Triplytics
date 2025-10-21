@@ -1,32 +1,11 @@
- 
 import mongoose from "mongoose";
 
 const vehicleSchema = new mongoose.Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    name: {
-      type: String,
-      required: true, // Required for validation
-      trim: true
-    },
-    type: {
-      type: String,
-      enum: ["Car", "Bike", "Truck", "Auto"],
-      required: true,
-    },
-    mileage: {
-      type: Number,
-      default: 0,
-    },
-    fuelType: {
-      type: [String],
-      enum: ["Petrol", "Diesel", "CNG", "Electricity"],
-      default: [],
-    },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    vehicleName: { type: String, required: true },
+    vehicleNumber: { type: String, required: true },
+    type: { type: String, default: "Car" },
   },
   { timestamps: true }
 );

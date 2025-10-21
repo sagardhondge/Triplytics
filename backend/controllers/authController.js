@@ -1,55 +1,48 @@
-import Expense from "../models/Expense.js";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-// ➕ Add Expense
-export const addExpense = async (req, res) => {
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+};
+
+// Register
+export const registerUser = async (req, res) => {
+  const { name, email, password } = req.body;
+
   try {
-    const expense = await Expense.create({ ...req.body, user: req.user });
-    res.status(201).json(expense);
+    const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ message: "User already exists" });
+
+    const user = await User.create({ name, email, password });
+    res.status(201).json({
+      user: { id: user._id, name: user.name, email: user.email },
+      token: generateToken(user._id),
+    });
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: "Registration failed", error: err.message });
+  }
+};
+
+// Login
+export const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user || !(await user.matchPassword(password))) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
-    console.error("Server error during addExpense:", err);
-    res.status(500).json({ message: "Internal Server Error: Could not save expense." });
+
+    res.json({
+      user: { id: user._id, name: user.name, email: user.email },
+      token: generateToken(user._id),
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Login failed", error: err.message });
   }
 };
 
-// 📋 Get All Expenses for Logged-in User
-export const getExpenses = async (req, res) => {
-  try {
-    const expenses = await Expense.find({ user: req.user }).sort({ date: -1 });
-    res.status(200).json(expenses);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+// Profile
+export const getProfile = async (req, res) => {
+  res.json({ user: req.user });
 };
-
-// ✏️ Update Expense
-export const updateExpense = async (req, res) => {
-  try {
-    const expense = await Expense.findOneAndUpdate(
-      { _id: req.params.id, user: req.user },
-      req.body,
-      { new: true, runValidators: true } 
-    );
-    if (!expense) return res.status(404).json({ message: "Expense not found" });
-    res.json(expense);
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ message: err.message });
-    }
-    console.error("Server error during updateExpense:", err);
-    res.status(500).json({ message: "Internal Server Error: Could not update expense." });
-  }
-};
-
-// ❌ Delete Expense
-export const deleteExpense = async (req, res) => {
-  try {
-    const expense = await Expense.findOneAndDelete({ _id: req.params.id, user: req.user });
-    if (!expense) return res.status(404).json({ message: "Expense not found" });
-    res.json({ message: "Expense deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}; 
