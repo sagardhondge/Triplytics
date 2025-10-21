@@ -1,75 +1,76 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import DashboardBg from "../assets/Dashboard.png";
-import AddExpenseModal from "../components/AddExpenseModal";
+import AddExpenseModal from "../components/AddExpenseModal"; 
 import { useAppContext } from "../context/AppContext";
 
 const Dashboard = () => {
-  // 🚨 CORRECTED: Now imports 'profile' for vehicle/fuel data access.
   const { expenses, profile, loading, error, addExpense } = useAppContext();
   
   const [showModal, setShowModal] = useState(false);
   
   const handleOpenModal = () => setShowModal(true);
-  
-  // This handles saving data from the Short Entry Modal
   const handleModalSave = (entries) => entries.forEach(entry => addExpense(entry));
 
-  // 🚨 NEW FUNCTION: Accesses fuel cost from the single embedded vehicle (profile.vehicle)
-  const getVehicleFuelCost = () => {
-    const vehicle = profile?.vehicle; 
-    if (!vehicle || !vehicle.fuelEntries) return 0;
-    
-    // Calculates total fuel cost based on entries
-    return vehicle.fuelEntries.reduce(
-      (sum, f) => sum + Number(f.litres || 0) * Number(f.pricePerLitre || 0),
-      0
-    );
-  };
+  // Access vehicle info and mileage safely
+  const vehicle = profile?.vehicle;
+  const mileage = Number(vehicle?.mileage || 0);
 
-  // 🚨 CORRECTED: Includes Half-Annual period and full profit calculation
+  // 1. CALCULATIONS: Average Price per Litre (Needed for Mileage-Based Cost)
+  const getTotalLitresPurchased = () => vehicle?.fuelEntries?.reduce((sum, f) => sum + (Number(f.litres || 0)), 0) || 0;
+  const totalFuelCostPurchased = vehicle?.fuelEntries?.reduce((sum, f) => sum + (Number(f.litres || 0) * Number(f.pricePerLitre || 0)), 0) || 0;
+  const averageFuelPrice = getTotalLitresPurchased() > 0 ? totalFuelCostPurchased / getTotalLitresPurchased() : 0;
+
+  // 2. MAIN PROFIT CALCULATION FUNCTION (MILEAGE-BASED FIX)
   const totalProfit = (period) => {
-    if (!expenses || !Array.isArray(expenses)) return 0;
+    if (!expenses || !Array.isArray(expenses) || !profile) return 0;
 
     const now = new Date();
-    let filtered = expenses;
     const currentYear = new Date().getFullYear();
+    let filtered = expenses;
 
-    // 1. Filter expenses based on the selected period
+    // A. Filter trips for the given period
     if (period === "daily") {
-      filtered = expenses.filter(
-        (e) => new Date(e.date).toDateString() === now.toDateString()
-      );
+      filtered = expenses.filter((e) => new Date(e.date).toDateString() === now.toDateString());
     } else if (period === "weekly") {
-      const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+      const tempDate = new Date(now); 
+      const weekStart = new Date(tempDate.setDate(now.getDate() - now.getDay()));
       filtered = expenses.filter((e) => new Date(e.date) >= weekStart);
     } else if (period === "monthly") {
-      filtered = expenses.filter(
-        (e) => new Date(e.date).getMonth() === new Date().getMonth() && new Date(e.date).getFullYear() === currentYear
-      );
-    } else if (period === "half-annual") { // 🚨 ADDED: Half-Year period
+      filtered = expenses.filter((e) => new Date(e.date).getMonth() === new Date().getMonth() && new Date(e.date).getFullYear() === currentYear);
+    } else if (period === "half-annual") {
         const halfYearStart = new Date();
         halfYearStart.setMonth(new Date().getMonth() - 5); 
         filtered = expenses.filter((e) => new Date(e.date) >= halfYearStart);
     } else if (period === "annual") {
-      filtered = expenses.filter(
-        (e) => new Date(e.date).getFullYear() === currentYear
-      );
+      filtered = expenses.filter((e) => new Date(e.date).getFullYear() === currentYear);
     }
 
-    // 2. Get the fuel cost for the single vehicle
-    const vehicleFuelCost = getVehicleFuelCost();
+    // B. Calculate TOTAL Estimated Costs and Income for the filtered period
+    let totalIncome = 0;
+    let totalOtherExpenses = 0;
+    let totalEstimatedFuelCost = 0;
 
-    // 3. Calculate profit: Income - Fuel Cost - Trip Expenses
-    return filtered.reduce((sum, e) => {
-      const fare = Number(e.amount || 0);
-      const tripSpecificExpenses = Number(e.extraExpenses || 0) + Number(e.otherExpenses || 0);
-      const totalTripCost = vehicleFuelCost + tripSpecificExpenses;
-      
-      return sum + fare - totalTripCost;
-    }, 0).toFixed(2); // Format to 2 decimal places
+    filtered.forEach(e => {
+        const tripDistance = Number(e.distance || 0);
+
+        totalIncome += Number(e.amount || 0);
+        totalOtherExpenses += Number(e.extraExpenses || 0) + Number(e.otherExpenses || 0);
+
+        // Integrate Mileage Calculation
+        if (mileage > 0 && tripDistance > 0 && averageFuelPrice > 0) {
+            const fuelConsumed = tripDistance / mileage; 
+            totalEstimatedFuelCost += fuelConsumed * averageFuelPrice;
+        }
+    });
+
+    // C. Calculate FINAL Profit for the Period
+    const netProfit = totalIncome - totalEstimatedFuelCost - totalOtherExpenses;
+    
+    return netProfit.toFixed(2);
   };
 
+  // ------------------------- UI RENDERING -------------------------
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
@@ -86,7 +87,6 @@ const Dashboard = () => {
     );
   }
 
-  // 🚨 MODIFIED: Periods array now includes 'half-annual'
   const periods = [
     { key: "daily", label: "Daily Profit" },
     { key: "weekly", label: "Weekly Profit" },
@@ -152,7 +152,6 @@ const Dashboard = () => {
                 <th className="px-6 py-3 text-left font-semibold">Platform</th>
                 <th className="px-6 py-3 text-left font-semibold">Fare (₹)</th>
                 <th className="px-6 py-3 text-left font-semibold">Distance (km)</th>
-                {/* 🚨 REMOVED: Inaccurate 'Fuel (L)' column */}
               </tr>
             </thead>
             <tbody>
@@ -165,7 +164,6 @@ const Dashboard = () => {
                     <td className="px-6 py-3">{new Date(e.date).toLocaleDateString()}</td>
                     <td className="px-6 py-3">{e.title}</td>
                     <td className="px-6 py-3 text-cyan-300 font-medium">₹{e.amount}</td>
-                    {/* 🚨 CORRECTED: Displaying the distance field */}
                     <td className="px-6 py-3 text-cyan-200">{e.distance || 0}</td> 
                   </tr>
                 ))

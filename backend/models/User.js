@@ -7,7 +7,8 @@ const vehicleSchema = new mongoose.Schema({
   name: { type: String, default: "" }, 
   licensePlate: { type: String, default: "" },
   registrationDate: { type: Date },
-  // Fuel entries remain as an array of subdocuments for detailed tracking
+  // 🚨 ADDED FIELD: Fuel consumption rate (e.g., in km/L)
+  mileage: { type: Number, default: 0 }, 
   fuelEntries: [{ 
     type: { type: String, default: "" },
     litres: { type: Number, default: 0 },
@@ -21,7 +22,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   phone: { type: String, default: "" },
   city: { type: String, default: "" },
-  // 🚨 Change from array to a single embedded object
+  // Single embedded vehicle object
   vehicle: { type: vehicleSchema, default: {} }, 
 });
 

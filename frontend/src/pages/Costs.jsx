@@ -9,8 +9,9 @@ const Costs = () => {
   const { profile, expenses, loading, error, addExpense, updateProfile, deleteExpense } = useAppContext();
   
   const vehicle = profile?.vehicle; 
-  
-  // NEW STATE: Form data for the direct detailed entry
+  const mileage = Number(vehicle?.mileage || 0); // 🚨 Retrieve Mileage (km/L)
+
+  // NEW STATE: Form data for the direct detailed entry (UNCHANGED)
   const [newEntryForm, setNewEntryForm] = useState({
       date: getTodayDate(),
       platform: "",
@@ -20,35 +21,33 @@ const Costs = () => {
       otherExpenses: "", 
   });
 
-  // State for accordion visibility
+  // State for accordion visibility (UNCHANGED)
   const [showFuel, setShowFuel] = useState(true);
   const [showExpense, setShowExpense] = useState(true);
   
-  // ----------------------------- FUEL HANDLERS -----------------------------
+  const inputClass = "p-3 border rounded-xl bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 transition-all";
+
+  // ----------------------------- FUEL HANDLERS (UNCHANGED) -----------------------------
   const handleFuelChange = (index, field, value) => {
     if (!vehicle) return;
-
     const updatedFuelEntries = [...(vehicle.fuelEntries || [])];
     updatedFuelEntries[index] = { ...updatedFuelEntries[index], [field]: value };
-
     updateProfile({ vehicle: { ...vehicle, fuelEntries: updatedFuelEntries } });
   };
 
   const addFuelEntry = () => {
     if (!vehicle) return;
-
     const updatedFuelEntries = [...(vehicle.fuelEntries || []), { type: "", litres: "", pricePerLitre: "" }];
     updateProfile({ vehicle: { ...vehicle, fuelEntries: updatedFuelEntries } });
   };
 
   const removeFuelEntry = (index) => {
     if (!vehicle) return;
-
     const updatedFuelEntries = vehicle.fuelEntries.filter((_, i) => i !== index);
     updateProfile({ vehicle: { ...vehicle, fuelEntries: updatedFuelEntries } });
   };
 
-  // ----------------------------- ENTRY FORM HANDLER -----------------------------
+  // ----------------------------- ENTRY FORM HANDLER (UNCHANGED) -----------------------------
   const handleNewEntryChange = (e) => {
       const { name, value } = e.target;
       setNewEntryForm(prev => ({ ...prev, [name]: value }));
@@ -59,7 +58,6 @@ const Costs = () => {
       
       const { platform, fare, distance, date, extraExpenses, otherExpenses } = newEntryForm;
       
-      // MANDATORY FIELD CHECK
       if (!platform || !fare || !distance || !date) {
           alert("Platform, Fare, Date, and Distance are mandatory fields for trip entry.");
           return;
@@ -77,7 +75,6 @@ const Costs = () => {
 
       addExpense(newExpense);
       
-      // Reset form after submission
       setNewEntryForm({
           date: getTodayDate(), platform: "", fare: "", distance: "", extraExpenses: "", otherExpenses: ""
       });
@@ -87,28 +84,38 @@ const Costs = () => {
     deleteExpense(id);
   };
 
-  // ----------------------------- CALCULATIONS -----------------------------
-  const getVehicleFuelCost = () => {
-    if (!vehicle?.fuelEntries) return 0;
-    return vehicle.fuelEntries.reduce((sum, f) => sum + (Number(f.litres || 0) * Number(f.pricePerLitre || 0)), 0);
-  };
-
-  // 🚨 NEW CALCULATION: Total Litres Purchased
-  const getTotalLitresPurchased = () => {
-    if (!vehicle?.fuelEntries) return 0;
-    return vehicle.fuelEntries.reduce((sum, f) => sum + (Number(f.litres || 0)), 0);
-  };
+  // ----------------------------- CALCULATIONS (MILEAGE-BASED) -----------------------------
+  const totalLitresPurchased = vehicle?.fuelEntries?.reduce((sum, f) => sum + (Number(f.litres || 0)), 0) || 0;
+  const totalFuelCost = vehicle?.fuelEntries?.reduce((sum, f) => sum + (Number(f.litres || 0) * Number(f.pricePerLitre || 0)), 0) || 0;
   
-  const totalFuelCost = getVehicleFuelCost();
-  const totalLitresPurchased = getTotalLitresPurchased();
-
+  // 1. Average Price per Litre (₹/L)
+  const averageFuelPrice = totalLitresPurchased > 0 ? totalFuelCost / totalLitresPurchased : 0;
+  
   const vehicleExpenses = expenses.filter((e) => e.vehicle === vehicle?._id);
 
+  // 2. Calculate TOTAL Estimated Consumption (for the 'Fuel Remaining' summary)
+  const totalEstimatedConsumption = vehicleExpenses.reduce((sum, e) => {
+    const tripDistance = Number(e.distance || 0);
+    if (mileage > 0 && tripDistance > 0) {
+      // Fuel Consumed (L) = Distance (km) / Mileage (km/L)
+      return sum + (tripDistance / mileage);
+    }
+    return sum;
+  }, 0);
+  
+  // 3. Summary Totals
   const totalTripIncome = vehicleExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const totalTripExpenses = vehicleExpenses.reduce((sum, e) => sum + (Number(e.extraExpenses) || 0) + (Number(e.otherExpenses) || 0), 0);
-  const totalNetProfit = totalTripIncome - totalFuelCost - totalTripExpenses; 
   
-  // ----------------------------- UI RENDERING -----------------------------
+  // 4. Total Net Profit (Income - All Costs)
+  const totalEstimatedFuelCost = totalEstimatedConsumption * averageFuelPrice;
+  const totalNetProfit = totalTripIncome - totalEstimatedFuelCost - totalTripExpenses; 
+  
+  // 5. Estimated Fuel Remaining
+  const fuelRemaining = totalLitresPurchased - totalEstimatedConsumption;
+
+
+  // ----------------------------- UI RENDERING (UNCHANGED) -----------------------------
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
@@ -124,8 +131,6 @@ const Costs = () => {
       </div>
     );
   }
-
-  const inputClass = "p-3 border rounded-xl bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 transition-all";
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -147,9 +152,10 @@ const Costs = () => {
                     </span>
                 </p>
                 <p>
-                    Total Fuel Cost:{" "}
+                    {/* 🚨 UPDATED: Displaying Estimated Cost, not Total Purchased Cost */}
+                    Estimated Fuel Cost:{" "}
                     <span className="text-red-400 font-extrabold">
-                    ₹ {totalFuelCost.toFixed(2)}
+                    ₹ {totalEstimatedFuelCost.toFixed(2)}
                     </span>
                 </p>
                 <p>
@@ -159,10 +165,10 @@ const Costs = () => {
                     </span>
                 </p>
                 <p>
-                    {/* 🚨 ADDED: Fuel Remaining/Total Litres Purchased */}
-                    Total Litres Purchased:{" "}
-                    <span className="text-green-400 font-extrabold">
-                    {totalLitresPurchased.toFixed(2)} L
+                    {/* 🚨 ADDED: Fuel Remaining */}
+                    Fuel Remaining (Est.):{" "}
+                    <span className={`font-extrabold ${fuelRemaining >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {fuelRemaining.toFixed(2)} L
                     </span>
                 </p>
                 <div className="md:col-span-4">
@@ -176,14 +182,14 @@ const Costs = () => {
             </div>
           </section>
 
-          {/* ===================== FUEL ENTRIES ===================== */}
+          {/* ===================== FUEL ENTRIES (UNCHANGED) ===================== */}
           <section className="mb-10">
             <div
               className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
               onClick={() => setShowFuel(!showFuel)}
             >
               <h2 className="text-2xl font-semibold text-gray-200">
-                Fuel Entries (Total Cost: ₹ {totalFuelCost.toFixed(2)})
+                Fuel Entries (Total Purchased Cost: ₹ {totalFuelCost.toFixed(2)})
               </h2>
               {showFuel ? (
                 <ChevronUp className="text-cyan-400" />
@@ -254,7 +260,6 @@ const Costs = () => {
             )}
           </section>
 
-          {/* ===================== TRIP / EXPENSE SECTION ===================== */}
           <section>
             <div
               className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
@@ -272,7 +277,7 @@ const Costs = () => {
 
             {showExpense && (
               <>
-                {/* INLINE FORM FOR DETAILED ENTRY (Mandatory fields first) */}
+                {/* INLINE FORM FOR DETAILED ENTRY (UNCHANGED) */}
                 <form onSubmit={submitNewEntry} className="mb-8 p-4 rounded-xl bg-gray-700/50 border border-indigo-500/30">
                     <h3 className="text-xl font-semibold text-indigo-300 mb-4">New Trip Entry</h3>
                     
@@ -318,7 +323,16 @@ const Costs = () => {
                             <tbody>
                                 {vehicleExpenses.map((e) => {
                                     const tripExpenses = (e.extraExpenses || 0) + (e.otherExpenses || 0);
-                                    const netProfit = (Number(e.amount) || 0) - totalFuelCost - tripExpenses;
+                                    const tripDistance = Number(e.distance || 0);
+                                    let fuelCostForThisTrip = 0;
+                                    
+                                    // 🚨 MILEAGE-BASED CALCULATION: Calculate fuel cost for this specific trip
+                                    if (mileage > 0 && tripDistance > 0 && averageFuelPrice > 0) {
+                                        const fuelConsumed = tripDistance / mileage; 
+                                        fuelCostForThisTrip = fuelConsumed * averageFuelPrice;
+                                    }
+
+                                    const netProfit = (Number(e.amount) || 0) - fuelCostForThisTrip - tripExpenses;
                                     
                                     return (
                                         <tr key={e._id} className="hover:bg-cyan-500/10 border-b border-cyan-500/10">

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAppContext } from "../context/AppContext"; // Import context to get vehicle ID
 
 const getTodayDate = () => {
     const today = new Date();
@@ -7,11 +8,15 @@ const getTodayDate = () => {
 };
 
 const AddExpenseModal = ({ isOpen, onClose, onSave }) => {
+  const { profile } = useAppContext(); // Get profile for vehicle ID
+  
   const [entryType, setEntryType] = useState("single"); // single or multiple
   
-  // --- UPDATED: Initial state now uses getTodayDate() ---
-  const [rideData, setRideData] = useState({ platform: "", fare: "", date: getTodayDate() });
-  const [multipleData, setMultipleData] = useState([{ platform: "", fare: "", date: getTodayDate() }]);
+  // 🚨 FIX 1: Initial state must include the mandatory 'distance' field
+  const defaultEntry = { platform: "", fare: "", distance: "", date: getTodayDate() };
+  
+  const [rideData, setRideData] = useState(defaultEntry);
+  const [multipleData, setMultipleData] = useState([defaultEntry]);
 
   if (!isOpen) return null;
 
@@ -21,26 +26,51 @@ const AddExpenseModal = ({ isOpen, onClose, onSave }) => {
       setRideData({ ...rideData, [name]: value });
     } else {
       const temp = [...multipleData];
-      temp[index][name] = value;
+      // 🚨 FIX: Safely merge update into the specific index object
+      temp[index] = { ...temp[index], [name]: value }; 
       setMultipleData(temp);
     }
   };
 
-  const addMoreRows = () => setMultipleData([...multipleData, { platform: "", fare: "", date: getTodayDate() }]);
+  const addMoreRows = () => setMultipleData([...multipleData, defaultEntry]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    const vehicleId = profile?.vehicle?._id;
+
+    // 🚨 FIX 2: Data preparation now includes distance and explicit zeros for detailed fields
+    const prepareEntry = (d) => ({
+      title: d.platform,
+      amount: Number(d.fare),
+      distance: Number(d.distance) || 0, // Mandatory short field
+      date: d.date,
+      vehicle: vehicleId,
+      // Mandatory zeros for optional detailed fields (as this is the SHORT entry modal)
+      extraExpenses: 0, 
+      otherExpenses: 0, 
+    });
+
+    let entries;
+    // 🚨 FIX 3: Filter condition updated to require all mandatory fields (platform, fare, date, distance)
     if (entryType === "single") {
-      // Filter out empty rows just in case
-      onSave([rideData].filter(d => d.fare && d.date));
-      // Reset state for single entry, defaulting date to today
-      setRideData({ platform: "", fare: "", date: getTodayDate() });
+      entries = [rideData].filter(d => d.fare && d.date && d.distance && d.platform);
     } else {
-      // Filter out incomplete rows for multiple entry
-      onSave(multipleData.filter(d => d.fare && d.date));
-      // Reset state for multiple entry, defaulting the first row's date to today
-      setMultipleData([{ platform: "", fare: "", date: getTodayDate() }]);
+      entries = multipleData.filter(d => d.fare && d.date && d.distance && d.platform);
     }
+    
+    if (entries.length === 0) {
+        // Use a simple alert since custom modal is too complex for this exchange
+        alert("Please fill in all mandatory fields: Date, Platform, Fare, and Distance.");
+        return;
+    }
+
+    onSave(entries.map(prepareEntry));
+    
+    // Reset state using the updated defaultEntry
+    setRideData(defaultEntry);
+    setMultipleData([defaultEntry]);
+    
     onClose();
   };
   
@@ -90,32 +120,45 @@ const AddExpenseModal = ({ isOpen, onClose, onSave }) => {
           {/* Scrollable Input Area */}
           <div className={`space-y-4 mb-4 ${entryType === "multiple" ? 'max-h-80 overflow-y-auto pr-3' : ''}`}>
             {currentData.map((data, idx) => (
-              <div key={idx} className="flex flex-col sm:flex-row gap-3">
+              <div key={idx} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Date Input */}
                 <input
                   type="date"
                   name="date"
                   value={data.date}
                   onChange={(e) => handleChange(e, idx)}
-                  className="p-3 border border-gray-600 rounded-lg flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
+                  className="p-3 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
                   placeholder="dd-mm-yyyy"
                   required
                 />
+                {/* Platform Input */}
                 <input
                   type="text"
                   name="platform"
-                  placeholder="Platform (Ola/Uber/etc.)"
+                  placeholder="Platform"
                   value={data.platform}
                   onChange={(e) => handleChange(e, idx)}
-                  className="p-3 border border-gray-600 rounded-lg flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
+                  className="p-3 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
                   required
                 />
+                {/* Fare Input */}
                 <input
                   type="number"
                   name="fare"
                   placeholder="Fare (₹)"
                   value={data.fare}
                   onChange={(e) => handleChange(e, idx)}
-                  className="p-3 border border-gray-600 rounded-lg flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
+                  className="p-3 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
+                  required
+                />
+                {/* 🚨 FIX 4: ADDED Distance input field */}
+                <input
+                  type="number"
+                  name="distance"
+                  placeholder="Distance (km)"
+                  value={data.distance}
+                  onChange={(e) => handleChange(e, idx)}
+                  className="p-3 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
                   required
                 />
               </div>
