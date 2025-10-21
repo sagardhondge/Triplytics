@@ -17,7 +17,7 @@ export default function Navbar() {
   const navLinks = [
     { name: "Home", path: "/dashboard", icon: <Home size={20} />, color: "from-pink-500 via-red-500 to-yellow-500" },
     { name: "Profile", path: "/profile", icon: <User size={20} />, color: "from-purple-500 via-indigo-500 to-blue-500" },
-    { name: "Vehicles", path: "/vehicles", icon: <Car size={20} />, color: "from-green-400 via-lime-400 to-teal-400" },
+    // { name: "Vehicles", path: "/vehicles", icon: <Car size={20} />, color: "from-green-400 via-lime-400 to-teal-400" },
     { name: "Costs", path: "/costs", icon: <Wallet size={20} />, color: "from-orange-400 via-yellow-400 to-red-400" },
     // { name: "Settings", path: "/settings", icon: <Settings size={20} />, color: "from-blue-400 via-cyan-400 to-teal-400" },
   ];

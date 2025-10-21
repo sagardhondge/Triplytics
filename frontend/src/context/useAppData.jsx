@@ -19,7 +19,8 @@ const useAppData = () => {
       setError(null);
       try {
         const [profileRes, expensesRes] = await Promise.all([
-          API.get("/users/me"),
+          // Fetches profile which now includes the single embedded vehicle
+          API.get("/users/me"), 
           API.get("/expenses"),
         ]);
         setProfile(profileRes.data);
@@ -36,7 +37,9 @@ const useAppData = () => {
     fetchData();
   }, [user]);
 
-  // ====================== Profile ======================
+  // ====================== Profile (Now includes single Vehicle updates) ======================
+  // The 'updatedProfile' object may contain top-level fields (name, email) 
+  // or the entire nested 'vehicle' object (for fuel entry updates, etc.)
   const updateProfile = async (updatedProfile) => {
     try {
       const res = await API.put("/users/me", updatedProfile);
@@ -49,9 +52,14 @@ const useAppData = () => {
       return null;
     }
   };
+  
+  // 🚨 REMOVED: updateVehicle, addVehicle, deleteVehicle functions 
+  // (These are now handled by the generic updateProfile via the /users/me endpoint)
 
   // ====================== Expenses ======================
   const addExpense = async (newExpense) => {
+    // Note: The backend now expects new fields like 'distance', 'extraExpenses', etc.
+    // The frontend must ensure these are included in newExpense, defaulting to 0.
     if (!newExpense.title || newExpense.amount === undefined || newExpense.amount === null) {
       console.error("Expense missing required fields", newExpense);
       setError("Expense must have a title and amount.");
@@ -60,7 +68,8 @@ const useAppData = () => {
 
     try {
       const res = await API.post("/expenses", newExpense);
-      setExpenses((prev) => [...prev, res.data]);
+      // Backend returns the full expense, which now includes new fields
+      setExpenses((prev) => [...prev, res.data]); 
       return res.data;
     } catch (err) {
       const message = err.response?.data?.message || err.message;

@@ -1,24 +1,28 @@
+// models/User.js
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const fuelSchema = new mongoose.Schema({
-  type: { type: String, required: true }, // e.g., Petrol, Diesel, CNG
-});
-
+// Simplified Vehicle schema to be embedded
 const vehicleSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // Vehicle Make/Model
-  licensePlate: { type: String, required: true },
-  registrationDate: { type: Date, required: true },
-  fuelTypes: [fuelSchema], // Fuel types used by this vehicle
+  name: { type: String, default: "" }, 
+  licensePlate: { type: String, default: "" },
+  registrationDate: { type: Date },
+  // Fuel entries remain as an array of subdocuments for detailed tracking
+  fuelEntries: [{ 
+    type: { type: String, default: "" },
+    litres: { type: Number, default: 0 },
+    pricePerLitre: { type: Number, default: 0 },
+  }],
 });
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // Driver Name
+  name: { type: String, required: true }, 
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  phone: { type: String },
-  city: { type: String },
-  vehicles: [vehicleSchema], // Array of vehicles
+  phone: { type: String, default: "" },
+  city: { type: String, default: "" },
+  // 🚨 Change from array to a single embedded object
+  vehicle: { type: vehicleSchema, default: {} }, 
 });
 
 // Hash password before saving

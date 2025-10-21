@@ -1,9 +1,11 @@
+// src/App.jsx
+
 import { Routes, Route, Navigate } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
-import Vehicles from "./pages/vehicles";
+// 🚨 REMOVE: import Vehicles from "./pages/vehicles"; 
 import Costs from "./pages/Costs";
 import { useAuth } from "./context/AuthContext";
 import { AppContextProvider } from "./context/AppContext";
@@ -18,13 +20,15 @@ const ProtectedRoutes = () => {
       <Routes>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
-        <Route path="vehicles" element={<Vehicles />} />
+        {/* 🚨 REMOVE: The route to the Vehicles page */}
+        {/* <Route path="vehicles" element={<Vehicles />} /> */}
         <Route path="costs" element={<Costs />} />
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </AppContextProvider>
   );
 };
+
 
 function App() {
   const { user, loading } = useAuth();

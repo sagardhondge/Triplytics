@@ -1,152 +1,359 @@
 import React, { useState } from "react";
+import { Wallet, ChevronDown, ChevronUp, X, Plus } from "lucide-react";
 import Navbar from "../components/Navbar";
-import { X } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 
+const getTodayDate = () => new Date().toISOString().split('T')[0];
+
 const Costs = () => {
-  const { vehicles, expenses, addExpense, updateExpense, deleteExpense, updateVehicle } = useAppContext();
+  const { profile, expenses, loading, error, addExpense, updateProfile, deleteExpense } = useAppContext();
+  
+  const vehicle = profile?.vehicle; 
+  
+  // NEW STATE: Form data for the direct detailed entry
+  const [newEntryForm, setNewEntryForm] = useState({
+      date: getTodayDate(),
+      platform: "",
+      fare: "",
+      distance: "",
+      extraExpenses: "", 
+      otherExpenses: "", 
+  });
 
-  const [editingFuel, setEditingFuel] = useState({}); // { vehicleId: true/false }
-
-  const handleFuelChange = (vehicleId, index, field, value) => {
-    const vehicle = vehicles.find((v) => v._id === vehicleId);
+  // State for accordion visibility
+  const [showFuel, setShowFuel] = useState(true);
+  const [showExpense, setShowExpense] = useState(true);
+  
+  // ----------------------------- FUEL HANDLERS -----------------------------
+  const handleFuelChange = (index, field, value) => {
     if (!vehicle) return;
 
     const updatedFuelEntries = [...(vehicle.fuelEntries || [])];
     updatedFuelEntries[index] = { ...updatedFuelEntries[index], [field]: value };
 
-    updateVehicle(vehicleId, { fuelEntries: updatedFuelEntries });
+    updateProfile({ vehicle: { ...vehicle, fuelEntries: updatedFuelEntries } });
   };
 
-  const addFuelEntry = (vehicleId) => {
-    const vehicle = vehicles.find((v) => v._id === vehicleId);
+  const addFuelEntry = () => {
     if (!vehicle) return;
 
     const updatedFuelEntries = [...(vehicle.fuelEntries || []), { type: "", litres: "", pricePerLitre: "" }];
-    updateVehicle(vehicleId, { fuelEntries: updatedFuelEntries });
+    updateProfile({ vehicle: { ...vehicle, fuelEntries: updatedFuelEntries } });
   };
 
-  const removeFuelEntry = (vehicleId, index) => {
-    const vehicle = vehicles.find((v) => v._id === vehicleId);
+  const removeFuelEntry = (index) => {
     if (!vehicle) return;
 
     const updatedFuelEntries = vehicle.fuelEntries.filter((_, i) => i !== index);
-    updateVehicle(vehicleId, { fuelEntries: updatedFuelEntries });
+    updateProfile({ vehicle: { ...vehicle, fuelEntries: updatedFuelEntries } });
   };
 
-  const getFuelCostForVehicle = (vehicleId) => {
-    const vehicle = vehicles.find((v) => v._id === vehicleId);
+  // ----------------------------- ENTRY FORM HANDLER -----------------------------
+  const handleNewEntryChange = (e) => {
+      const { name, value } = e.target;
+      setNewEntryForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const submitNewEntry = (e) => {
+      e.preventDefault();
+      
+      const { platform, fare, distance, date, extraExpenses, otherExpenses } = newEntryForm;
+      
+      // MANDATORY FIELD CHECK
+      if (!platform || !fare || !distance || !date) {
+          alert("Platform, Fare, Date, and Distance are mandatory fields for trip entry.");
+          return;
+      }
+      
+      const newExpense = {
+          title: platform,
+          amount: Number(fare),
+          distance: Number(distance),
+          date: date,
+          vehicle: vehicle?._id || null,
+          extraExpenses: Number(extraExpenses) || 0,
+          otherExpenses: Number(otherExpenses) || 0,
+      };
+
+      addExpense(newExpense);
+      
+      // Reset form after submission
+      setNewEntryForm({
+          date: getTodayDate(), platform: "", fare: "", distance: "", extraExpenses: "", otherExpenses: ""
+      });
+  };
+
+  const removeExpenseEntry = (id) => {
+    deleteExpense(id);
+  };
+
+  // ----------------------------- CALCULATIONS -----------------------------
+  const getVehicleFuelCost = () => {
     if (!vehicle?.fuelEntries) return 0;
-    return vehicle.fuelEntries.reduce((sum, f) => sum + (Number(f.litres) || 0) * (Number(f.pricePerLitre) || 0), 0);
+    return vehicle.fuelEntries.reduce((sum, f) => sum + (Number(f.litres || 0) * Number(f.pricePerLitre || 0)), 0);
   };
 
-  if (!vehicles || !expenses) return <div>Loading...</div>;
+  // 🚨 NEW CALCULATION: Total Litres Purchased
+  const getTotalLitresPurchased = () => {
+    if (!vehicle?.fuelEntries) return 0;
+    return vehicle.fuelEntries.reduce((sum, f) => sum + (Number(f.litres || 0)), 0);
+  };
+  
+  const totalFuelCost = getVehicleFuelCost();
+  const totalLitresPurchased = getTotalLitresPurchased();
+
+  const vehicleExpenses = expenses.filter((e) => e.vehicle === vehicle?._id);
+
+  const totalTripIncome = vehicleExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const totalTripExpenses = vehicleExpenses.reduce((sum, e) => sum + (Number(e.extraExpenses) || 0) + (Number(e.otherExpenses) || 0), 0);
+  const totalNetProfit = totalTripIncome - totalFuelCost - totalTripExpenses; 
+  
+  // ----------------------------- UI RENDERING -----------------------------
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900 text-cyan-300 text-xl font-semibold">
+        Loading costs...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-900 text-red-500 text-xl font-semibold">
+        Error: Failed to load costs data.
+      </div>
+    );
+  }
+
+  const inputClass = "p-3 border rounded-xl bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 transition-all";
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
-      <div className="pt-24 px-6 md:px-12 py-10 max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-cyan-300 mb-6">Detailed Costs</h1>
+      <div className="pt-24 px-6 md:px-12 py-10">
+        <div className="max-w-7xl mx-auto bg-gray-800/80 backdrop-blur-md rounded-xl shadow-2xl p-8 border border-cyan-500/20">
+          <h1 className="text-3xl font-extrabold text-cyan-300 mb-8 flex items-center gap-3">
+            <Wallet className="text-cyan-400" size={30} /> Cost Management
+          </h1>
 
-        {vehicles.map((vehicle) => {
-          const fuelCost = getFuelCostForVehicle(vehicle._id);
-          const vehicleExpenses = expenses.filter((e) => e.vehicle === vehicle._id);
-
-          return (
-            <div key={vehicle._id} className="mb-10 bg-gray-800/70 p-6 rounded-xl shadow-xl border border-cyan-500/20">
-              <h2 className="text-2xl font-bold text-cyan-300 mb-4">{vehicle.vehicleMake}</h2>
-
-              {/* Fuel Entries */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-xl font-semibold text-gray-200">Fuel Entries</h3>
-                  <button
-                    onClick={() => addFuelEntry(vehicle._id)}
-                    className="bg-cyan-600 px-4 py-2 rounded-xl font-semibold hover:bg-cyan-700 transition-all"
-                  >
-                    + Add Fuel
-                  </button>
-                </div>
-                {(vehicle.fuelEntries || []).map((f, idx) => (
-                  <div key={idx} className="grid md:grid-cols-5 gap-4 mb-2 bg-gray-700/30 p-3 rounded-xl">
-                    <input
-                      type="text"
-                      placeholder="Fuel Type"
-                      value={f.type}
-                      onChange={(e) => handleFuelChange(vehicle._id, idx, "type", e.target.value)}
-                      className="p-2 rounded-xl bg-gray-700 border border-gray-600 text-white"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Litres"
-                      value={f.litres}
-                      onChange={(e) => handleFuelChange(vehicle._id, idx, "litres", e.target.value)}
-                      className="p-2 rounded-xl bg-gray-700 border border-gray-600 text-white"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price per Litre ₹"
-                      value={f.pricePerLitre}
-                      onChange={(e) => handleFuelChange(vehicle._id, idx, "pricePerLitre", e.target.value)}
-                      className="p-2 rounded-xl bg-gray-700 border border-gray-600 text-white"
-                    />
-                    <p className="flex items-center font-semibold text-cyan-300">
-                      Total: ₹{((Number(f.litres) || 0) * (Number(f.pricePerLitre) || 0)).toFixed(2)}
+          {/* ===================== SUMMARY ===================== */}
+          <section className="mb-10">
+            <h2 className="text-2xl font-semibold text-gray-200 mb-4">{vehicle?.name || "Primary Vehicle"} Summary</h2>
+            <div className="bg-gray-700/50 p-6 rounded-xl shadow-inner grid md:grid-cols-4 gap-4 border border-gray-700">
+                <p>
+                    Total Income:{" "}
+                    <span className="font-bold text-cyan-300">
+                    ₹ {totalTripIncome.toFixed(2)}
+                    </span>
+                </p>
+                <p>
+                    Total Fuel Cost:{" "}
+                    <span className="text-red-400 font-extrabold">
+                    ₹ {totalFuelCost.toFixed(2)}
+                    </span>
+                </p>
+                <p>
+                    Total Other Expenses:{" "}
+                    <span className="text-red-400 font-extrabold">
+                    ₹ {totalTripExpenses.toFixed(2)}
+                    </span>
+                </p>
+                <p>
+                    {/* 🚨 ADDED: Fuel Remaining/Total Litres Purchased */}
+                    Total Litres Purchased:{" "}
+                    <span className="text-green-400 font-extrabold">
+                    {totalLitresPurchased.toFixed(2)} L
+                    </span>
+                </p>
+                <div className="md:col-span-4">
+                    <p className="text-xl mt-2">
+                        Net Profit:{" "}
+                        <span className={`font-extrabold ${totalNetProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ₹ {totalNetProfit.toFixed(2)}
+                        </span>
                     </p>
-                    <button
-                      onClick={() => removeFuelEntry(vehicle._id, idx)}
-                      className="bg-red-600 text-white px-2 py-1 rounded-xl hover:bg-red-700 transition-all"
+                </div>
+            </div>
+          </section>
+
+          {/* ===================== FUEL ENTRIES ===================== */}
+          <section className="mb-10">
+            <div
+              className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
+              onClick={() => setShowFuel(!showFuel)}
+            >
+              <h2 className="text-2xl font-semibold text-gray-200">
+                Fuel Entries (Total Cost: ₹ {totalFuelCost.toFixed(2)})
+              </h2>
+              {showFuel ? (
+                <ChevronUp className="text-cyan-400" />
+              ) : (
+                <ChevronDown className="text-cyan-400" />
+              )}
+            </div>
+
+            {showFuel && (
+              <>
+                {(vehicle?.fuelEntries || []).map((f, index) => (
+                  <div
+                    key={index}
+                    className="grid md:grid-cols-6 gap-4 mb-4 items-center bg-gray-700/30 p-4 rounded-xl"
+                  >
+                    <select
+                      name="type"
+                      value={f.type || ""}
+                      onChange={(e) => handleFuelChange(index, "type", e.target.value)}
+                      className={inputClass}
                     >
-                      <X className="w-5 h-5" />
+                      <option value="">Fuel Type</option>
+                      <option value="Petrol">Petrol</option>
+                      <option value="Diesel">Diesel</option>
+                      <option value="CNG">CNG</option>
+                      <option value="Electricity">Electricity</option>
+                    </select>
+
+                    <input
+                      type="number"
+                      name="litres"
+                      placeholder="Litres"
+                      value={f.litres || ""}
+                      onChange={(e) => handleFuelChange(index, "litres", e.target.value)}
+                      className={inputClass}
+                    />
+
+                    <input
+                      type="number"
+                      name="pricePerLitre"
+                      placeholder="Price per Litre ₹"
+                      value={f.pricePerLitre || ""}
+                      onChange={(e) => handleFuelChange(index, "pricePerLitre", e.target.value)}
+                      className={inputClass}
+                    />
+
+                    <p className="flex items-center font-semibold text-cyan-300">
+                      Total: ₹
+                      {(Number(f.litres || 0) * Number(f.pricePerLitre || 0)).toFixed(2)}
+                    </p>
+
+                    <button
+                      onClick={() => removeFuelEntry(index)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 transition-all col-span-2 md:col-span-1"
+                    >
+                      <X className="w-5 h-5 mx-auto" />
                     </button>
                   </div>
                 ))}
-                <p className="mt-2 text-gray-400">Total Fuel Cost: ₹{fuelCost}</p>
-              </div>
 
-              {/* Trip Entries */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-cyan-500/20 text-cyan-300 uppercase text-sm">
-                    <tr>
-                      <th className="px-4 py-2">Date</th>
-                      <th className="px-4 py-2">Trip</th>
-                      <th className="px-4 py-2">Fare (₹)</th>
-                      <th className="px-4 py-2">Net Profit (₹)</th>
-                      <th className="px-4 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vehicleExpenses.length > 0 ? (
-                      vehicleExpenses.map((e) => (
-                        <tr key={e._id} className="hover:bg-cyan-500/10 border-b border-cyan-500/10">
-                          <td className="px-4 py-2">{new Date(e.date).toLocaleDateString()}</td>
-                          <td className="px-4 py-2">{e.title}</td>
-                          <td className="px-4 py-2">₹{e.amount}</td>
-                          <td className="px-4 py-2">₹{(Number(e.amount) || 0) - fuelCost}</td>
-                          <td className="px-4 py-2">
-                            <button
-                              onClick={() => deleteExpense(e._id)}
-                              className="bg-red-600 px-2 py-1 rounded-xl hover:bg-red-700"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="text-center py-4 text-gray-400 italic">
-                          No trips recorded for this vehicle.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                <button
+                  onClick={addFuelEntry}
+                  className="mt-2 bg-cyan-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-cyan-700 transition-all"
+                >
+                  + Add Fuel Entry
+                </button>
+              </>
+            )}
+          </section>
+
+          {/* ===================== TRIP / EXPENSE SECTION ===================== */}
+          <section>
+            <div
+              className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
+              onClick={() => setShowExpense(!showExpense)}
+            >
+              <h2 className="text-2xl font-semibold text-gray-200">
+                Trip Entries (Detailed)
+              </h2>
+              {showExpense ? (
+                <ChevronUp className="text-cyan-400" />
+              ) : (
+                <ChevronDown className="text-cyan-400" />
+              )}
             </div>
-          );
-        })}
+
+            {showExpense && (
+              <>
+                {/* INLINE FORM FOR DETAILED ENTRY (Mandatory fields first) */}
+                <form onSubmit={submitNewEntry} className="mb-8 p-4 rounded-xl bg-gray-700/50 border border-indigo-500/30">
+                    <h3 className="text-xl font-semibold text-indigo-300 mb-4">New Trip Entry</h3>
+                    
+                    {/* MANDATORY FIELDS */}
+                    <div className="grid md:grid-cols-4 gap-4 mb-4">
+                        <input type="date" name="date" value={newEntryForm.date} onChange={handleNewEntryChange} className={inputClass} required />
+                        <input type="text" name="platform" placeholder="Platform (Mandatory)" value={newEntryForm.platform} onChange={handleNewEntryChange} className={inputClass} required />
+                        <input type="number" name="fare" placeholder="Fare/Income (₹) (Mandatory)" value={newEntryForm.fare} onChange={handleNewEntryChange} className={inputClass} required />
+                        <input type="number" name="distance" placeholder="Distance (km) (Mandatory)" value={newEntryForm.distance} onChange={handleNewEntryChange} className={inputClass} required />
+                    </div>
+
+                    {/* OPTIONAL EXPENSE FIELDS */}
+                    <div className="grid md:grid-cols-4 gap-4 mb-4">
+                        <input type="number" name="extraExpenses" placeholder="Tolls/Parking (₹) (Optional)" value={newEntryForm.extraExpenses} onChange={handleNewEntryChange} className={inputClass} />
+                        <input type="number" name="otherExpenses" placeholder="Other Costs (₹) (Optional)" value={newEntryForm.otherExpenses} onChange={handleNewEntryChange} className={inputClass} />
+                        <div className="md:col-span-2 flex justify-end">
+                            <button
+                                type="submit"
+                                className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-2"
+                            >
+                                <Plus size={20} /> Record Trip
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                {/* TRIP TABLE */}
+                {vehicleExpenses.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead className="bg-cyan-500/20 text-cyan-300 uppercase text-sm">
+                                <tr>
+                                    <th className="px-4 py-2 text-left">Date</th>
+                                    <th className="px-4 py-2 text-left">Platform</th>
+                                    <th className="px-4 py-2">Fare (₹)</th>
+                                    <th className="px-4 py-2">Dist (km)</th>
+                                    <th className="px-4 py-2">Extra (₹)</th>
+                                    <th className="px-4 py-2">Other (₹)</th>
+                                    <th className="px-4 py-2">Net Profit (₹)</th>
+                                    <th className="px-4 py-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {vehicleExpenses.map((e) => {
+                                    const tripExpenses = (e.extraExpenses || 0) + (e.otherExpenses || 0);
+                                    const netProfit = (Number(e.amount) || 0) - totalFuelCost - tripExpenses;
+                                    
+                                    return (
+                                        <tr key={e._id} className="hover:bg-cyan-500/10 border-b border-cyan-500/10">
+                                            <td className="px-4 py-2 text-left">{new Date(e.date).toLocaleDateString()}</td>
+                                            <td className="px-4 py-2 text-left">{e.title}</td>
+                                            <td className="px-4 py-2">{Number(e.amount).toFixed(2)}</td>
+                                            <td className="px-4 py-2">{e.distance || 0}</td>
+                                            <td className="px-4 py-2">{e.extraExpenses.toFixed(2)}</td>
+                                            <td className="px-4 py-2">{e.otherExpenses.toFixed(2)}</td>
+                                            <td className={`px-4 py-2 font-bold ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {netProfit.toFixed(2)}
+                                            </td>
+                                            <td className="px-4 py-2">
+                                                <button
+                                                    onClick={() => removeExpenseEntry(e._id)}
+                                                    className="bg-red-600 px-2 py-1 rounded-xl hover:bg-red-700 text-white text-sm"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                  <p className="text-gray-400 italic">
+                    No trips added yet. Use the form above!
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

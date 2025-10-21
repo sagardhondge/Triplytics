@@ -1,9 +1,11 @@
+// controllers/expenseController.js
 import Expense from "../models/Expense.js";
 
 // GET /expenses
 export const getExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find({ user: req.user._id }).populate("vehicle");
+    // 🚨 FIX: Removed .populate("vehicle") to resolve the 500 error.
+    const expenses = await Expense.find({ user: req.user._id }); 
     res.status(200).json(expenses);
   } catch (err) {
     console.error("Error fetching expenses:", err);
@@ -11,13 +13,14 @@ export const getExpenses = async (req, res) => {
   }
 };
 
-// POST /expenses
+// POST /expenses - Updated to include new fields
 export const addExpense = async (req, res) => {
   try {
-    const { title, amount, vehicle, date } = req.body;
+    // 🚨 UPDATED: Destructure all new fields
+    const { title, amount, vehicle, date, distance, extraExpenses, otherExpenses } = req.body;
 
     if (!title || amount === undefined || amount === null) {
-      return res.status(400).json({ message: "Title and amount are required" });
+      return res.status(400).json({ message: "Title (Platform) and amount (Fare) are required" });
     }
 
     const expense = await Expense.create({
@@ -26,6 +29,10 @@ export const addExpense = async (req, res) => {
       vehicle,
       date: date || Date.now(),
       user: req.user._id,
+      // Default to 0 if not provided (Short Entry)
+      distance: distance || 0,
+      extraExpenses: extraExpenses || 0,
+      otherExpenses: otherExpenses || 0,
     });
 
     res.status(201).json(expense);
@@ -35,7 +42,7 @@ export const addExpense = async (req, res) => {
   }
 };
 
-// PUT /expenses/:id
+// PUT /expenses/:id - Uses Object.assign to handle all fields
 export const updateExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
@@ -53,7 +60,7 @@ export const updateExpense = async (req, res) => {
   }
 };
 
-// DELETE /expenses/:id
+// DELETE /expenses/:id - Remains the same
 export const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
