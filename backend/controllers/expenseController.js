@@ -1,29 +1,70 @@
 import Expense from "../models/Expense.js";
 
+// GET /expenses
 export const getExpenses = async (req, res) => {
-  const expenses = await Expense.find({ user: req.user._id }).populate("vehicle");
-  res.json(expenses);
+  try {
+    const expenses = await Expense.find({ user: req.user._id }).populate("vehicle");
+    res.status(200).json(expenses);
+  } catch (err) {
+    console.error("Error fetching expenses:", err);
+    res.status(500).json({ message: "Failed to fetch expenses" });
+  }
 };
 
+// POST /expenses
 export const addExpense = async (req, res) => {
-  const expense = await Expense.create({ ...req.body, user: req.user._id });
-  res.status(201).json(expense);
+  try {
+    const { title, amount, vehicle, date } = req.body;
+
+    if (!title || amount === undefined || amount === null) {
+      return res.status(400).json({ message: "Title and amount are required" });
+    }
+
+    const expense = await Expense.create({
+      title,
+      amount,
+      vehicle,
+      date: date || Date.now(),
+      user: req.user._id,
+    });
+
+    res.status(201).json(expense);
+  } catch (err) {
+    console.error("Error adding expense:", err);
+    res.status(500).json({ message: "Failed to add expense" });
+  }
 };
 
+// PUT /expenses/:id
 export const updateExpense = async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
-  if (!expense || expense.user.toString() !== req.user._id.toString()) {
-    return res.status(404).json({ message: "Expense not found or unauthorized" });
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense || expense.user.toString() !== req.user._id.toString()) {
+      return res.status(404).json({ message: "Expense not found or unauthorized" });
+    }
+
+    Object.assign(expense, req.body);
+    await expense.save();
+
+    res.status(200).json(expense);
+  } catch (err) {
+    console.error("Error updating expense:", err);
+    res.status(500).json({ message: "Failed to update expense" });
   }
-  const updated = await Expense.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
 };
 
+// DELETE /expenses/:id
 export const deleteExpense = async (req, res) => {
-  const expense = await Expense.findById(req.params.id);
-  if (!expense || expense.user.toString() !== req.user._id.toString()) {
-    return res.status(404).json({ message: "Expense not found or unauthorized" });
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense || expense.user.toString() !== req.user._id.toString()) {
+      return res.status(404).json({ message: "Expense not found or unauthorized" });
+    }
+
+    await expense.deleteOne();
+    res.status(200).json({ message: "Expense deleted" });
+  } catch (err) {
+    console.error("Error deleting expense:", err);
+    res.status(500).json({ message: "Failed to delete expense" });
   }
-  await expense.deleteOne();
-  res.json({ message: "Expense deleted" });
 };

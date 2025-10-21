@@ -4,7 +4,9 @@ import { getExpenses, addExpense, updateExpense, deleteExpense } from "../contro
 
 const router = express.Router();
 
+// All routes require authentication
 router.use(authMiddleware);
+
 router.route("/").get(getExpenses).post(addExpense);
 router.route("/:id").put(updateExpense).delete(deleteExpense);
 
