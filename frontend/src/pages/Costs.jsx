@@ -260,7 +260,7 @@ const Costs = () => {
             )}
           </section>
 
-          <section>
+           <section>
             <div
               className="flex items-center justify-between cursor-pointer border-t border-cyan-500/30 pt-6 mb-4"
               onClick={() => setShowExpense(!showExpense)}
